@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  supernote-converter:
+    build: .
+    container_name: supernote-converter
+    restart: unless-stopped
+    ports:
+      - "8085:8501"  # Streamlit default port
+    volumes:
+      # Source .note files (read-only)
+      - /mnt/cache/appdata/obsidian_vault_copy/Personal_Vault/03-Resources/supernote-notes:/data/source:ro
+      # Output directory
+      - /mnt/cache/appdata/obsidian_vault_copy/Personal_Vault/03-Resources/Journals:/data/output
+      # App data (database, PNG cache)
+      - /mnt/cache/appdata/supernote-converter:/app/data
+    environment:
+      - TZ=America/Chicago
+      - SOURCE_PATH=/data/source/alexhoward03@gmail.com/Supernote/Note
+      - OUTPUT_PATH=/data/output
+      - OLLAMA_URL=http://192.168.1.138:11434
+      - OLLAMA_MODEL=qwen3-vl:8b
+    env_file:
+      - .env  # OPENAI_API_KEY
