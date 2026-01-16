@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(python -c:*)",
+      "Bash(pip install:*)",
+      "Bash(python -m pip install:*)",
+      "Bash(streamlit run:*)",
+      "Bash(git rm:*)",
+      "Bash(git show:*)",
+      "Bash(python verify_scanner.py:*)",
+      "Bash(gh pr:*)"
+    ]
+  }
+}

@@ -34,9 +34,6 @@ wheels/
 *.swo
 *~
 
-# Claude Code CLI
-.claude/
-
 # Project specific
 data/
 !data/.gitkeep
