@@ -11,7 +11,7 @@ Always write plans to this project directory, eg C:\Users\alexn\Documents\Projec
 
 Supernote Converter is a Python Streamlit web application that converts handwritten Supernote `.note` files into searchable markdown for Obsidian. It uses local Ollama vision OCR (qwen3-vl:8b) as the primary extraction method with OpenAI gpt-4o as fallback.
 
-**Current State:** Database layer implemented. See `docs/plan.md` for full specification and implementation progress.
+**Current State:** Database layer and Config & Settings implemented (Steps 1-3 complete). See `docs/plan.md` for full specification and implementation progress.
 
 ## Tech Stack
 
@@ -31,7 +31,7 @@ Supernote Converter is a Python Streamlit web application that converts handwrit
 pip install -r requirements.txt
 
 # Run Streamlit web UI
-streamlit run app/app.py
+streamlit run app/Home.py
 
 # Run headless processor (for cron)
 python -m app --process
@@ -47,7 +47,7 @@ docker exec supernote-converter python -m app --process
 
 ```
 app/
-├── app.py              # Streamlit main dashboard
+├── Home.py             # Streamlit main dashboard (renamed from app.py to avoid package conflict)
 ├── __main__.py         # CLI entry point (--process flag)
 ├── config.py           # Pydantic settings from .env
 ├── database.py         # SQLite schema & operations

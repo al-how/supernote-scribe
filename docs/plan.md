@@ -127,8 +127,9 @@ supernote-converter/
 ├── app/
 │   ├── __init__.py
 │   ├── __main__.py          # CLI entry point (--process flag)
-│   ├── app.py               # Streamlit main entry point
+│   ├── Home.py              # Streamlit main entry point (dashboard)
 │   ├── config.py            # Settings (Pydantic)
+│   ├── settings_manager.py  # Bridge between config and database
 │   ├── database.py          # SQLite + migrations
 │   ├── pages/
 │   │   ├── 1_Scan.py        # Scan & process page
@@ -136,11 +137,12 @@ supernote-converter/
 │   │   ├── 3_History.py     # Processed notes history
 │   │   └── 4_Settings.py    # Configuration page
 │   └── services/
-│       ├── scanner.py       # File discovery
-│       ├── exporter.py      # supernotelib PNG export
-│       ├── ocr.py           # Ollama + OpenAI vision
-│       ├── processor.py     # Main processing pipeline
-│       └── markdown.py      # Output builder
+│       ├── scanner.py          # File discovery
+│       ├── exporter.py         # supernotelib PNG export
+│       ├── ocr.py              # Ollama + OpenAI vision
+│       ├── processor.py        # Main processing pipeline
+│       ├── markdown.py         # Output builder
+│       └── connection_tester.py # Connection validation utilities
 └── data/                    # Volume mount point (local dev + prod)
     ├── supernote.db         # SQLite database
     └── png_cache/           # Cached PNG exports
@@ -228,7 +230,7 @@ def ocr_with_ollama(image_path: Path, ollama_url: str, model: str) -> str:
 
 1. **COMPLETE: Setup project structure** - Create directories, requirements.txt, Dockerfile
 2. **COMPLETE: Database layer** - SQLite schema, connection helpers, migrations
-3. **Config & settings** - Pydantic settings model, .env handling
+3. **COMPLETE: Config & settings** - Pydantic settings model, .env handling, Settings UI page
 4. **Scanner service** - File discovery, date parsing, deduplication
 5. **Exporter service** - supernotelib PNG export
 6. **OCR service** - Ollama vision, OpenAI vision backup
