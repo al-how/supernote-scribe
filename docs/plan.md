@@ -231,7 +231,7 @@ def ocr_with_ollama(image_path: Path, ollama_url: str, model: str) -> str:
 1. **COMPLETE: Setup project structure** - Create directories, requirements.txt, Dockerfile
 2. **COMPLETE: Database layer** - SQLite schema, connection helpers, migrations
 3. **COMPLETE: Config & settings** - Pydantic settings model, .env handling, Settings UI page
-4. **Scanner service** - File discovery, date parsing, deduplication
+4. **COMPLETE: Scanner service** - File discovery, date parsing, deduplication
 5. **Exporter service** - supernotelib PNG export
 6. **OCR service** - Ollama vision, OpenAI vision backup
 7. **Processor service** - Pipeline orchestration, auto-approve logic
