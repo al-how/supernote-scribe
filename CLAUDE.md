@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANT
+You are a coding agent assisting a non-coder. Resist the urge to over-engineer. DO NOT add features without discussing with the user. 
+
+Always write plans to this project directory, eg C:\Users\alexn\Documents\Projects\supernote-converter\.claude\plans\[session_name].md
+
 ## Project Overview
 
 Supernote Converter is a Python Streamlit web application that converts handwritten Supernote `.note` files into searchable markdown for Obsidian. It uses local Ollama vision OCR (qwen3-vl:8b) as the primary extraction method with OpenAI gpt-4o as fallback.

@@ -4,6 +4,11 @@
 
 This project is a Python Streamlit application designed to replace a brittle n8n workflow for processing Supernote `.note` files. It automates the conversion of handwritten notes to digital text using local vision AI and exports them to an Obsidian vault.
 
+## IMPORTANT
+You are a coding agent assisting a non-coder. Resist the urge to over-engineer. DO NOT add features without discussing with the user. 
+
+Always write plans to this project directory, eg C:\Users\alexn\Documents\Projects\supernote-converter\.gemini\plans\[session_name].md
+
 **Key Features:**
 *   **Scanning:** Detects `.note` files in a synchronized directory.
 *   **Conversion:** Converts Supernote proprietary format to PNG images using `supernotelib`.
@@ -86,3 +91,6 @@ The application is structured as a modular Streamlit app:
 *   **State Management:** Application state (processed files, review queue) is persisted in a local SQLite database (`supernote.db`).
 *   **Async/Sync:** The application primarily uses synchronous calls for Streamlit compatibility but may use `httpx` for API interactions.
 *   **Error Handling:** "Always Vision OCR" approach is preferred over text extraction fallbacks.
+
+## Working Conventions
+*   **Always draft a plan:** Never begin writing or editing files until you've drafted a plan.
