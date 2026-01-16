@@ -12,6 +12,7 @@
 *.toml text eol=lf
 *.ini text eol=lf
 *.cfg text eol=lf
+.env* text eol=lf
 
 # Documentation
 *.md text eol=lf
