@@ -734,6 +734,18 @@ def get_all_settings() -> dict[str, str]:
         return {row["key"]: row["value"] for row in cursor.fetchall()}
 
 
+def delete_setting(key: str) -> None:
+    """Delete a setting by key."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM settings WHERE key = ?", (key,))
+
+
+def clear_all_settings() -> None:
+    """Clear all settings from the database."""
+    with get_connection() as conn:
+        conn.execute("DELETE FROM settings")
+
+
 # =============================================================================
 # Activity Log
 # =============================================================================

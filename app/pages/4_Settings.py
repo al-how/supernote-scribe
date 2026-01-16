@@ -193,9 +193,8 @@ with st.expander("⚠️ Advanced Options"):
 
     if st.button("Reset to Environment Defaults", type="secondary"):
         try:
-            # Clear all DB settings by setting them to empty strings
-            for key in settings.keys():
-                manager.set(key, '')
+            # Clear all DB settings - will fall back to environment defaults
+            manager.clear_all()
 
             st.success("✅ Reset complete. Refresh page to see changes.")
             st.rerun()

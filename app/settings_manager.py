@@ -5,8 +5,9 @@ Database > Environment > Code Defaults
 """
 
 import typing
+from pathlib import Path
 from app.config import get_settings, Settings
-from app.database import get_setting, set_setting, get_all_settings
+from app.database import get_setting, set_setting, get_all_settings, delete_setting, clear_all_settings
 
 
 class SettingsManager:
@@ -61,9 +62,11 @@ class SettingsManager:
             'schedule_enabled': config.schedule_enabled,
         }
 
-        # Override with DB values
+        # Override with DB values (only if not None/empty)
         for key, value in db_settings.items():
-            result[key] = self._deserialize(key, value)
+            deserialized = self._deserialize(key, value)
+            if deserialized is not None:
+                result[key] = deserialized
 
         return result
 
@@ -80,6 +83,21 @@ class SettingsManager:
             return 'true' if value else 'false'
         return str(value)
 
+    def delete(self, key: str) -> None:
+        """Delete a setting from the database.
+
+        Args:
+            key: Setting key name to delete
+        """
+        delete_setting(key)
+
+    def clear_all(self) -> None:
+        """Clear all settings from the database.
+
+        After clearing, all settings will fall back to environment/config defaults.
+        """
+        clear_all_settings()
+
     def _deserialize(self, key: str, value: str):
         """Convert string from DB to appropriate Python type using Pydantic field annotations.
 
@@ -92,8 +110,12 @@ class SettingsManager:
             value: String value from database
 
         Returns:
-            Value converted to appropriate Python type
+            Value converted to appropriate Python type, or None if value is empty
         """
+        # Handle empty strings - return None so caller can use defaults
+        if not value:
+            return None
+
         # Get the expected type from the Pydantic model definition
         field = Settings.model_fields.get(key)
         if not field:
@@ -111,6 +133,8 @@ class SettingsManager:
         if target_type is bool:
             return value.lower() == 'true'
         if target_type is int:
-            return int(value)
+            return int(value) if value else 0
+        if target_type is Path:
+            return Path(value)
         # Default to string (preserves "007" as string, prevents numeric model names from breaking)
         return value
