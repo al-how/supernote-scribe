@@ -239,6 +239,51 @@ def ocr_with_ollama(image_path: Path, ollama_url: str, model: str) -> str:
 11. **Local testing** - Run locally with sample .note files
 12. **Deploy to Unraid** - Copy to Unraid, configure paths, verify
 
+## Testing Milestones
+
+You don't need to wait until the end to test! Here's when you can start validating functionality:
+
+### Step 5: Exporter Service (First Hands-On Test)
+**What you can test:** Convert a real `.note` file to PNG and visually verify output
+
+```python
+from app.services.exporter import export_note_to_png
+from pathlib import Path
+
+pngs = export_note_to_png(Path("path/to/your_test.note"))
+# Opens PNG files to visually verify conversion worked
+```
+
+This is your first "does this actually work with my real Supernote files" checkpoint.
+
+### Step 6: OCR Service
+**What you can test:** Send PNG to Ollama and see extracted text - validates your Ollama setup works
+
+```python
+from app.services.ocr import ocr_with_ollama
+from pathlib import Path
+
+text = ocr_with_ollama(Path("test.png"), "http://192.168.1.138:11434", "qwen3-vl:8b")
+print(text)  # See what Ollama extracted
+```
+
+### Step 7: Processor Service (First Full Pipeline)
+**What you can test:** Run full pipeline without UI - `.note` → PNG → OCR text → database
+
+```bash
+python -m app --process --cutoff 2026-01-01
+```
+
+This exercises scan → export → OCR → database storage headlessly.
+
+### Step 8: Markdown Service
+**What you can test:** End-to-end verification - `.note` file becomes markdown in correct Journals folder with proper frontmatter and formatting.
+
+### Step 9: Streamlit Pages (Full Interactive Testing)
+**What you can test:** Complete web UI workflow - scan, process, review, approve, search history.
+
+**Recommendation:** Have a sample `.note` file ready for testing after Step 5 (only 2 steps away from current progress).
+
 ## Requirements
 
 ```
