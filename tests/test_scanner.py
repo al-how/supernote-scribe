@@ -244,15 +244,7 @@ def test_source_folder_nested_work(tmp_path):
 # Scan and Insert Tests (with database)
 # =============================================================================
 
-
-@pytest.fixture
-def test_db(tmp_path):
-    """Set up test database."""
-    db_path = tmp_path / "test.db"
-    set_db_path(db_path)
-    init_db()
-    yield
-    # Cleanup handled by tmp_path fixture
+# test_db fixture is defined in conftest.py
 
 
 def test_scan_and_insert_new_notes(tmp_path, test_db):
