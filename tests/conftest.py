@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from app.config import Settings
 from app.database import close_connection, init_db, set_db_path
 
 
@@ -41,3 +42,51 @@ def work_note_path():
 def daily_note_path():
     """Path to a Daily Journal .note fixture."""
     return Path("tests/fixtures/Daily Journal/20260107_212138.note")
+
+
+# OCR Service Fixtures
+
+@pytest.fixture
+def sample_png_path():
+    """Path to a sample PNG for OCR testing."""
+    return Path("tests/fixtures/sample_page.png")
+
+
+@pytest.fixture
+def mock_settings():
+    """Mock Settings object for OCR testing."""
+    return Settings(
+        ollama_url="http://localhost:11434",
+        ollama_model="qwen3-vl:8b",
+        openai_api_key="sk-test-key",
+        openai_model="gpt-4o",
+        ocr_timeout=120,
+    )
+
+
+@pytest.fixture
+def ollama_success_response():
+    """Mock successful Ollama API response."""
+    return {
+        "model": "qwen3-vl:8b",
+        "response": "This is extracted text from the handwritten note.",
+        "done": True,
+    }
+
+
+@pytest.fixture
+def openai_success_response():
+    """Mock successful OpenAI API response."""
+    return {
+        "id": "chatcmpl-123",
+        "object": "chat.completion",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "This is extracted text from the handwritten note.",
+                },
+                "finish_reason": "stop",
+            }
+        ],
+    }
