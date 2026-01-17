@@ -1,7 +1,8 @@
 """Main Streamlit application - Dashboard page."""
 
 import streamlit as st
-from app.database import init_db
+import pandas as pd
+from app.database import init_db, count_notes_by_status, get_recent_activity
 
 # Initialize database on app startup
 init_db()
@@ -18,16 +19,22 @@ st.markdown("Convert handwritten Supernote files to searchable markdown using AI
 # Status Cards
 st.subheader("📊 Status Overview")
 
+# Fetch stats
+stats = count_notes_by_status()
+pending_count = stats.get("pending", 0)
+review_count = stats.get("review", 0)
+processed_count = stats.get("approved", 0) + stats.get("auto_approved", 0)
+
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.metric(label="Pending Notes", value="0")
+    st.metric(label="Pending Notes", value=str(pending_count))
 
 with col2:
-    st.metric(label="In Review", value="0")
+    st.metric(label="In Review", value=str(review_count))
 
 with col3:
-    st.metric(label="Processed", value="0")
+    st.metric(label="Processed", value=str(processed_count))
 
 # Quick Actions
 st.divider()
@@ -37,20 +44,43 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     if st.button("🔍 Scan for New Notes", use_container_width=True):
-        st.info("Navigate to **Scan** page to discover new .note files")
+        st.switch_page("pages/1_Scan.py")
 
 with col2:
     if st.button("✏️ Review Queue", use_container_width=True):
-        st.info("Navigate to **Review** page to approve pending extractions")
+        st.switch_page("pages/2_Review.py")
 
 with col3:
     if st.button("📜 View History", use_container_width=True):
-        st.info("Navigate to **History** page to see all processed notes")
+        st.switch_page("pages/3_History.py")
 
 # Recent Activity
 st.divider()
 st.subheader("📋 Recent Activity")
-st.info("No recent activity. Start by scanning for notes or configuring settings.")
+
+recent_logs = get_recent_activity(limit=5)
+
+if not recent_logs:
+    st.info("No recent activity. Start by scanning for notes or configuring settings.")
+else:
+    for log in recent_logs:
+        with st.container():
+            col_icon, col_time, col_msg = st.columns([0.5, 2, 8])
+            
+            # Icon based on event type
+            icon = "ℹ️"
+            if "scan" in log["event_type"].lower():
+                icon = "🔍"
+            elif "process" in log["event_type"].lower():
+                icon = "⚙️"
+            elif "approve" in log["event_type"].lower():
+                icon = "✅"
+            elif "error" in log["event_type"].lower():
+                icon = "❌"
+            
+            col_icon.write(icon)
+            col_time.caption(log["created_at"])
+            col_msg.markdown(f"**{log['message']}**")
 
 # System Info
 st.divider()

@@ -4,13 +4,19 @@ from datetime import datetime, date
 from pathlib import Path
 from typing import Generator
 
-from app.config import get_settings
+from app.config import get_settings, Settings
 from app.database import (
     determine_output_folder,
     determine_source_folder,
     get_note_by_path,
     upsert_note,
 )
+
+
+def _get_effective_settings() -> Settings:
+    """Get settings with database overrides applied."""
+    from app.settings_manager import SettingsManager
+    return Settings(**SettingsManager().get_all())
 
 
 def extract_date_from_filename(filename: str) -> date | None:
@@ -104,7 +110,7 @@ def scan_source_directory(
         - file_size_bytes: File size in bytes
     """
     if source_path is None:
-        settings = get_settings()
+        settings = _get_effective_settings()
         source_path = Path(settings.source_path)
 
     results = []

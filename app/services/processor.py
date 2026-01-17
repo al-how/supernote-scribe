@@ -35,6 +35,12 @@ from app.services.scanner import scan_and_insert
 logger = logging.getLogger(__name__)
 
 
+def _get_effective_settings() -> Settings:
+    """Get settings with database overrides applied."""
+    from app.settings_manager import SettingsManager
+    return Settings(**SettingsManager().get_all())
+
+
 # =============================================================================
 # Data Structures
 # =============================================================================
@@ -133,7 +139,7 @@ def process_single_note(
         ValueError: If note_id not found in database
     """
     if settings is None:
-        settings = get_settings()
+        settings = _get_effective_settings()
 
     try:
         # 1. Get note from database
@@ -311,7 +317,7 @@ def process_pending_notes(
         collected in the result for reporting.
     """
     if settings is None:
-        settings = get_settings()
+        settings = _get_effective_settings()
 
     # Get all pending notes
     pending_notes = get_pending_notes()
@@ -400,8 +406,11 @@ def run_batch_process(
     Returns:
         BatchProcessResult with combined scan and process statistics
     """
-    # Initialize app
-    settings = init_app()
+    # Initialize app (ensures DB is connected)
+    init_app()
+    
+    # Get effective settings
+    settings = _get_effective_settings()
 
     logger.info("Starting batch process")
     if cutoff_date:

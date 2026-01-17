@@ -4,11 +4,17 @@ from pathlib import Path
 from supernotelib import parser
 from supernotelib.converter import ImageConverter, build_visibility_overlay
 
-from app.config import get_settings
+from app.config import get_settings, Settings
 from app.database import (
     get_note_by_id,
     update_note_page_count,
 )
+
+
+def _get_effective_settings() -> Settings:
+    """Get settings with database overrides applied."""
+    from app.settings_manager import SettingsManager
+    return Settings(**SettingsManager().get_all())
 
 
 def get_page_count(note_path: Path) -> int:
@@ -59,7 +65,7 @@ def export_note_to_png(
         raise FileNotFoundError(f"Note file not found: {note_path}")
 
     if output_dir is None:
-        settings = get_settings()
+        settings = _get_effective_settings()
         output_dir = Path(settings.png_cache_path)
 
     # Ensure output directory exists
@@ -128,7 +134,7 @@ def export_note_by_id(note_id: int) -> list[Path]:
         raise FileNotFoundError(f"Note file not found: {note_path}")
 
     # Create PNG cache subdirectory using note_id
-    settings = get_settings()
+    settings = _get_effective_settings()
     output_dir = Path(settings.png_cache_path) / str(note_id)
     output_dir.mkdir(parents=True, exist_ok=True)
 

@@ -11,7 +11,10 @@ from app.services.connection_tester import (
     test_path_writable
 )
 from app.config import get_settings
+from app.database import init_db
 
+# Initialize DB
+init_db()
 
 st.set_page_config(page_title="Settings", page_icon="⚙️", layout="wide")
 

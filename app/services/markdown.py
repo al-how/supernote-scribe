@@ -24,6 +24,12 @@ from app.database import (
 )
 
 
+def _get_effective_settings() -> Settings:
+    """Get settings with database overrides applied."""
+    from app.settings_manager import SettingsManager
+    return Settings(**SettingsManager().get_all())
+
+
 # =============================================================================
 # Constants
 # =============================================================================
@@ -251,7 +257,7 @@ def save_markdown(
         ValueError: If note not found
     """
     if settings is None:
-        settings = get_settings()
+        settings = _get_effective_settings()
 
     note = get_note_by_id(note_id)
     if note is None:
@@ -344,7 +350,7 @@ def approve_and_save_note(
         Path to the written markdown file
     """
     if settings is None:
-        settings = get_settings()
+        settings = _get_effective_settings()
 
     # Save markdown (uses get_aggregated_text which reads from database)
     output_path = save_markdown(note_id, settings=settings)
