@@ -4,11 +4,13 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 from app.database import get_notes_history, init_db
+import app.styles as styles
 
 # Initialize DB
 init_db()
 
 st.set_page_config(page_title="History", page_icon="📜", layout="wide")
+styles.load_css()
 
 st.title("📜 History")
 
@@ -52,6 +54,16 @@ display_cols = ["id", "file_modified_at", "file_name", "source_folder", "status"
 df_display = df[display_cols].copy()
 df_display["file_modified_at"] = pd.to_datetime(df_display["file_modified_at"]).dt.strftime('%Y-%m-%d %H:%M')
 
+# Apply styling to status column
+def color_status_col(val):
+    color = styles.get_status_color(val)
+    return f'background-color: {color}; color: white'
+
+# Use applymap (pandas < 2.1) or map (pandas >= 2.1)
+# We'll use applymap which is generally safe for now, or try/except if needed.
+# But simplest is just styling the subset.
+styled_df = df_display.style.applymap(color_status_col, subset=["status"])
+
 # ============================================================================
 # List View
 # ============================================================================
@@ -59,7 +71,7 @@ st.subheader(f"Found {len(notes)} Notes")
 
 # Interactive dataframe
 event = st.dataframe(
-    df_display,
+    styled_df,
     use_container_width=True,
     hide_index=True,
     selection_mode="single-row",

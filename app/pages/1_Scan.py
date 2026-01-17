@@ -6,11 +6,13 @@ from datetime import date, timedelta
 from app.services.scanner import scan_and_insert
 from app.services.processor import process_pending_notes
 from app.database import get_pending_notes, init_db
+import app.styles as styles
 
 # Initialize DB
 init_db()
 
 st.set_page_config(page_title="Scan & Process", page_icon="🔍")
+styles.load_css()
 
 st.title("🔍 Scan & Process")
 st.markdown("Discover new notes and process them with AI vision.")

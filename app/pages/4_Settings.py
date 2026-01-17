@@ -12,11 +12,13 @@ from app.services.connection_tester import (
 )
 from app.config import get_settings
 from app.database import init_db
+import app.styles as styles
 
 # Initialize DB
 init_db()
 
 st.set_page_config(page_title="Settings", page_icon="⚙️", layout="wide")
+styles.load_css()
 
 st.title("⚙️ Settings")
 st.markdown("Configure OCR endpoints, paths, and processing thresholds.")

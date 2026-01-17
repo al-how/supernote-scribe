@@ -13,11 +13,13 @@ from app.database import (
     init_db,
 )
 from app.services.markdown import approve_and_save_note
+import app.styles as styles
 
 # Initialize DB
 init_db()
 
 st.set_page_config(page_title="Review Queue", page_icon="✏️", layout="wide")
+styles.load_css()
 
 st.title("✏️ Review Queue")
 
@@ -25,7 +27,14 @@ st.title("✏️ Review Queue")
 queue = get_review_queue()
 
 if not queue:
-    st.info("✅ All caught up! No notes waiting for review.")
+    st.markdown("""
+    <div style="text-align:center; padding:40px;">
+        <div style="font-size:48px;">✨</div>
+        <h3>All caught up!</h3>
+        <p style="color:#888;">No notes waiting for review</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
     if st.button("Refresh Queue"):
         st.rerun()
     st.stop()

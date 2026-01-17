@@ -3,6 +3,7 @@
 import streamlit as st
 import pandas as pd
 from app.database import init_db, count_notes_by_status, get_recent_activity
+import app.styles as styles
 
 # Initialize database on app startup
 init_db()
@@ -12,6 +13,7 @@ st.set_page_config(
     page_icon="📝",
     layout="wide"
 )
+styles.load_css()
 
 st.title("📝 Supernote Converter")
 st.markdown("Convert handwritten Supernote files to searchable markdown using AI vision OCR.")
