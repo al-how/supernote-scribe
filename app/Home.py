@@ -85,16 +85,19 @@ else:
 # System Info
 st.divider()
 with st.expander("ℹ️ System Information"):
-    from app.config import get_settings
-    config = get_settings()
+    from app.settings_manager import SettingsManager
+    
+    # Get effective settings (DB overrides + defaults)
+    manager = SettingsManager()
+    config = manager.get_all()
 
     st.markdown(f"""
     **Configuration:**
-    - Source Path: `{config.source_path}`
-    - Output Path: `{config.output_path}`
-    - Ollama URL: `{config.ollama_url}`
-    - Ollama Model: `{config.ollama_model}`
-    - Auto-Approve Threshold: {config.auto_approve_threshold} chars
+    - Source Path: `{config['source_path']}`
+    - Output Path: `{config['output_path']}`
+    - Ollama URL: `{config['ollama_url']}`
+    - Ollama Model: `{config['ollama_model']}`
+    - Auto-Approve Threshold: {config['auto_approve_threshold']} chars
 
     **Database:** SQLite (initialized)
 

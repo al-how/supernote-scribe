@@ -20,24 +20,34 @@ st.markdown("Discover new notes and process them with AI vision.")
 # ============================================================================
 st.subheader("1. Scan for Notes")
 
+# Initialize session state for cutoff date if not present
+if "cutoff_date" not in st.session_state:
+    # Default to 7 days ago
+    st.session_state.cutoff_date = date.today() - timedelta(days=7)
+
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    # Default to 7 days ago to avoid scanning ancient history by default
-    default_date = date.today() - timedelta(days=7)
     cutoff_date = st.date_input(
         "Cutoff Date",
-        value=default_date,
+        value=st.session_state.cutoff_date,
         help="Only scan notes modified on or after this date"
     )
+    # Update session state when value changes
+    st.session_state.cutoff_date = cutoff_date
 
 with col2:
     st.write("") # Spacer
     st.write("") # Spacer
     scan_btn = st.button("🔎 Scan Now", type="primary", use_container_width=True)
 
+# Show current source path for clarity
+from app.settings_manager import SettingsManager
+current_source = SettingsManager().get("source_path")
+st.caption(f"Scanning directory: `{current_source}`")
+
 if scan_btn:
-    with st.spinner("Scanning directory..."):
+    with st.spinner(f"Scanning {current_source}..."):
         # Convert date to datetime.date (streamlit returns date)
         new, updated, skipped = scan_and_insert(cutoff_date=cutoff_date)
         
