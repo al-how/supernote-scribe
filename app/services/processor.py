@@ -207,8 +207,11 @@ def process_single_note(
 
         # 6. Auto-approve logic
         if char_count >= settings.auto_approve_threshold:
-            # Calculate output path
-            output_path = _calculate_output_path(note, settings)
+            # Import markdown service
+            from app.services.markdown import save_markdown
+
+            # Save markdown file (this actually writes the file now)
+            output_path = save_markdown(note_id, settings=settings)
 
             # Mark as auto-approved
             mark_note_auto_approved(note_id, str(output_path))

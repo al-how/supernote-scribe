@@ -4,6 +4,15 @@ from app.services.exporter import (
     export_note_to_png,
     get_page_count,
 )
+from app.services.markdown import (
+    approve_and_save_note,
+    approve_with_full_text_edit,
+    build_frontmatter,
+    build_markdown,
+    process_line_breaks,
+    save_full_text_edit,
+    save_markdown,
+)
 from app.services.ocr import (
     OCRError,
     extract_text_from_image,
@@ -30,6 +39,14 @@ __all__ = [
     "export_note_by_id",
     "export_note_to_png",
     "get_page_count",
+    # Markdown
+    "approve_and_save_note",
+    "approve_with_full_text_edit",
+    "build_frontmatter",
+    "build_markdown",
+    "process_line_breaks",
+    "save_full_text_edit",
+    "save_markdown",
     # OCR
     "OCRError",
     "extract_text_from_image",

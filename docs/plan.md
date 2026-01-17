@@ -235,7 +235,7 @@ def ocr_with_ollama(image_path: Path, ollama_url: str, model: str) -> str:
 5. **COMPLETE: Exporter service** - supernotelib PNG export
 6. **COMPLETE: OCR service** - Ollama vision, OpenAI vision backup
 7. **COMPLETE: Processor service** - Pipeline orchestration, auto-approve logic
-8. **Markdown service** - Frontmatter builder, line processing
+8. **COMPLETE: Markdown service** - Frontmatter builder, line processing
 9. **Streamlit pages** - Dashboard (app.py), Scan, Review, History, Settings
 10. **Docker config** - Dockerfile, docker-compose.yml
 11. **Local testing** - Run locally with sample .note files

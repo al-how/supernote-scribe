@@ -11,7 +11,12 @@
       "Bash(git rm:*)",
       "Bash(git show:*)",
       "Bash(python verify_scanner.py:*)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(dir /s /b \"c:\\\\Users\\\\alexn\\\\Documents\\\\Projects\\\\supernote-converter\\\\tests\\\\fixtures\\\\*.note\")",
+      "Bash(python -m pytest:*)",
+      "Bash(python -m py_compile:*)",
+      "Bash(python -m app:*)",
+      "Bash(set SOURCE_PATH=tests/fixtures)"
     ]
   }
 }
