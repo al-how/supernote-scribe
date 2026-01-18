@@ -29,7 +29,7 @@ Always write plans to this project directory, eg C:\Users\alexn\Documents\Projec
 The application is structured as a modular Streamlit app:
 
 *   **`app/`**: Main application source code.
-    *   **`app.py`**: Entry point for the Streamlit web interface (Dashboard).
+    *   **`Home.py`**: Entry point for the Streamlit web interface (Dashboard).
     *   **`__main__.py`**: Entry point for CLI/Headless mode.
     *   **`pages/`**: Individual Streamlit pages (Scan, Review, History, Settings).
     *   **`services/`**: Core business logic modules (`scanner`, `exporter`, `ocr`, `processor`, `markdown`).
@@ -61,7 +61,7 @@ The application is structured as a modular Streamlit app:
 
 3.  **Run Web UI:**
     ```bash
-    streamlit run app/app.py
+    streamlit run app/Home.py
     ```
 
 4.  **Run Headless (CLI):**

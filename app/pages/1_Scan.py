@@ -3,6 +3,12 @@
 import streamlit as st
 import time
 from datetime import date, timedelta
+import sys
+import os
+
+# Add project root to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
 from app.services.scanner import scan_and_insert
 from app.services.processor import process_pending_notes
 from app.database import get_pending_notes, init_db

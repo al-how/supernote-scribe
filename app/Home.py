@@ -2,6 +2,12 @@
 
 import streamlit as st
 import pandas as pd
+import sys
+import os
+
+# Add project root to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from app.database import init_db, count_notes_by_status, get_recent_activity
 import app.styles as styles
 
