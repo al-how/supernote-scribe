@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import logging
 from pathlib import Path
+from typing import Callable
 
 import httpx
 
@@ -189,6 +190,7 @@ def extract_text_from_image(
     image_path: Path,
     settings: Settings,
     prefer_openai: bool = False,
+    status_callback: Callable[[str], None] | None = None,
 ) -> tuple[str, str]:
     """Extract text from image with automatic fallback between providers.
 
@@ -199,6 +201,7 @@ def extract_text_from_image(
         image_path: Path to PNG image
         settings: Application settings
         prefer_openai: If True, use OpenAI as primary (default: False, use Ollama)
+        status_callback: Optional callback for status updates (e.g., "Sending to Ollama...")
 
     Returns:
         Tuple of (extracted_text, provider_used) where provider is "ollama" or "openai"
@@ -221,6 +224,9 @@ def extract_text_from_image(
 
     # Try primary
     logger.info(f"Attempting OCR with primary provider: {primary_name}")
+    if status_callback:
+        status_callback(f"Sending to {primary_name.title()}...")
+
     result = primary_fn(image_path, settings)
 
     if result is not None:
@@ -228,6 +234,9 @@ def extract_text_from_image(
 
     # Primary failed, try fallback
     logger.info(f"Primary OCR failed, trying fallback: {fallback_name}")
+    if status_callback:
+        status_callback(f"{primary_name.title()} failed, trying {fallback_name.title()}...")
+
     result = fallback_fn(image_path, settings)
 
     if result is not None:

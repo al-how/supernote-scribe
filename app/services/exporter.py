@@ -1,5 +1,6 @@
 """Exporter service for converting .note files to PNG."""
 from pathlib import Path
+from typing import Callable
 
 from supernotelib import parser
 from supernotelib.converter import ImageConverter, build_visibility_overlay
@@ -46,6 +47,7 @@ def get_page_count(note_path: Path) -> int:
 def export_note_to_png(
     note_path: Path,
     output_dir: Path | None = None,
+    progress_callback: Callable[[int, int], None] | None = None,
 ) -> list[Path]:
     """
     Export all pages of a .note file to PNG images.
@@ -53,6 +55,7 @@ def export_note_to_png(
     Args:
         note_path: Path to the .note file
         output_dir: Directory for PNGs (defaults to config png_cache_path)
+        progress_callback: Optional callback for progress updates (current_page, total_pages)
 
     Returns:
         List of paths to exported PNG files, ordered by page number
@@ -84,6 +87,10 @@ def export_note_to_png(
 
         png_paths = []
         for page_num in range(total_pages):
+            # Report progress
+            if progress_callback:
+                progress_callback(page_num + 1, total_pages)
+
             # Convert page to PIL Image
             pil_image = image_converter.convert(
                 page_num,
@@ -103,7 +110,10 @@ def export_note_to_png(
         raise ValueError(f"Invalid .note file: {note_path}: {e}") from e
 
 
-def export_note_by_id(note_id: int) -> list[Path]:
+def export_note_by_id(
+    note_id: int,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> list[Path]:
     """
     Export note from database by ID, updating page_count.
 
@@ -116,6 +126,7 @@ def export_note_by_id(note_id: int) -> list[Path]:
 
     Args:
         note_id: Database ID of the note
+        progress_callback: Optional callback for progress updates (current_page, total_pages)
 
     Returns:
         List of paths to exported PNG files
@@ -139,7 +150,7 @@ def export_note_by_id(note_id: int) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Export to PNG
-    png_paths = export_note_to_png(note_path, output_dir)
+    png_paths = export_note_to_png(note_path, output_dir, progress_callback)
 
     # Update page count in database
     update_note_page_count(note_id, len(png_paths))

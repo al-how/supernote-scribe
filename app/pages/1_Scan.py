@@ -87,8 +87,9 @@ else:
         # Progress container
         progress_bar = st.progress(0)
         status_text = st.empty()
+        detail_text = st.empty()
         log_container = st.container()
-        
+
         def progress_callback(stage: str, current: int, total: int, note_name: str):
             """Update UI progress."""
             if stage == "processing":
@@ -98,10 +99,18 @@ else:
             elif stage == "complete":
                 progress_bar.progress(100)
                 status_text.success("Processing complete!")
+                detail_text.empty()  # Clear detail message on completion
+
+        def detail_callback(message: str):
+            """Update detailed status message."""
+            detail_text.markdown(f"↳ _{message}_")
 
         # Run processing
         with st.status("Processing pipeline running...", expanded=True) as status:
-            result = process_pending_notes(progress_callback=progress_callback)
+            result = process_pending_notes(
+                progress_callback=progress_callback,
+                detail_callback=detail_callback,
+            )
             
             status.write("---")
             status.write(f"**Processed:** {result.processed}")

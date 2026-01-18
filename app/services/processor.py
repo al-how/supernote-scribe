@@ -80,6 +80,9 @@ SingleNoteProgressCallback = Callable[[str, int, int], None]
 # (stage, current_note, total_notes, note_name) where stage is "processing", "complete"
 BatchProgressCallback = Callable[[str, int, int, str], None]
 
+# (message) for detailed UI messages like "Exporting page 1 of 3..."
+DetailCallback = Callable[[str], None]
+
 
 # =============================================================================
 # Helper Functions
@@ -112,6 +115,7 @@ def process_single_note(
     note_id: int,
     settings: Settings | None = None,
     progress_callback: SingleNoteProgressCallback | None = None,
+    detail_callback: DetailCallback | None = None,
     prefer_openai: bool = False,
 ) -> ProcessResult:
     """
@@ -130,6 +134,7 @@ def process_single_note(
         note_id: Database ID of note to process
         settings: Application settings (defaults to global settings)
         progress_callback: Optional callback for progress updates
+        detail_callback: Optional callback for detailed status messages
         prefer_openai: If True, use OpenAI as primary OCR
 
     Returns:
@@ -156,7 +161,12 @@ def process_single_note(
         if progress_callback:
             progress_callback("exporting", 0, 0)
 
-        png_paths = export_note_by_id(note_id)
+        # Create export progress callback that formats detail messages
+        def export_progress(current: int, total: int):
+            if detail_callback:
+                detail_callback(f"Exporting page {current} of {total}...")
+
+        png_paths = export_note_by_id(note_id, progress_callback=export_progress)
         page_count = len(png_paths)
 
         logger.info(f"Exported {page_count} pages for note {note_id}")
@@ -168,11 +178,16 @@ def process_single_note(
 
             logger.info(f"OCR page {page_num + 1}/{page_count} for note {note_id}")
 
+            # Create OCR status callback for provider messages
+            def ocr_status(message: str):
+                if detail_callback:
+                    detail_callback(f"OCR page {page_num + 1} of {page_count}: {message}")
+
             # Extract text with timing
             start_time = time.time()
             try:
                 text, provider = extract_text_from_image(
-                    png_path, settings, prefer_openai
+                    png_path, settings, prefer_openai, status_callback=ocr_status
                 )
                 time_ms = int((time.time() - start_time) * 1000)
 
@@ -215,6 +230,10 @@ def process_single_note(
         if char_count >= settings.auto_approve_threshold:
             # Import markdown service
             from app.services.markdown import save_markdown
+
+            # Detail callback for save operation
+            if detail_callback:
+                detail_callback(f"Saving to {note['output_folder']}...")
 
             # Save markdown file (this actually writes the file now)
             output_path = save_markdown(note_id, settings=settings)
@@ -299,6 +318,7 @@ def process_single_note(
 def process_pending_notes(
     settings: Settings | None = None,
     progress_callback: BatchProgressCallback | None = None,
+    detail_callback: DetailCallback | None = None,
     prefer_openai: bool = False,
 ) -> BatchProcessResult:
     """
@@ -307,6 +327,7 @@ def process_pending_notes(
     Args:
         settings: Application settings (defaults to global settings)
         progress_callback: Optional callback for batch progress updates
+        detail_callback: Optional callback for detailed status messages
         prefer_openai: If True, use OpenAI as primary OCR
 
     Returns:
@@ -346,6 +367,7 @@ def process_pending_notes(
         result = process_single_note(
             note_id=note_id,
             settings=settings,
+            detail_callback=detail_callback,
             prefer_openai=prefer_openai,
         )
 
@@ -434,7 +456,16 @@ def run_batch_process(
 
     # Process pending notes
     logger.info("Processing pending notes...")
-    result = process_pending_notes(settings=settings, prefer_openai=prefer_openai)
+
+    # Add simple logging callback for CLI visibility
+    def log_detail(message: str):
+        logger.info(f"  → {message}")
+
+    result = process_pending_notes(
+        settings=settings,
+        prefer_openai=prefer_openai,
+        detail_callback=log_detail,
+    )
 
     # Combine scan results into the batch result
     result.scanned = scanned
