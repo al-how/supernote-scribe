@@ -14,7 +14,7 @@ from app.database import (
     get_extractions_for_note,
     update_extraction_text,
     mark_note_for_review,
-    delete_note,
+    mark_note_rejected,
     init_db,
 )
 from app.services.markdown import approve_and_save_note
@@ -22,6 +22,10 @@ import app.styles as styles
 
 # Initialize DB
 init_db()
+
+# Initialize session state for delete confirmation
+if "confirm_delete" not in st.session_state:
+    st.session_state.confirm_delete = None
 
 st.set_page_config(page_title="Review Queue", page_icon="✏️", layout="wide")
 styles.load_css()
@@ -143,10 +147,23 @@ with col_actions:
             st.toast("Draft saved!")
 
     with c3:
-        if st.button("🗑️ Delete/Reject", type="secondary", use_container_width=True):
-            if st.button("Confirm Delete?", type="primary"):
-                delete_note(note_id)
-                st.success("Note deleted.")
+        if st.session_state.confirm_delete == note_id:
+            # Show confirmation buttons
+            st.warning("Are you sure?")
+            conf_col1, conf_col2 = st.columns(2)
+            with conf_col1:
+                if st.button("Yes, Reject", type="primary", use_container_width=True):
+                    mark_note_rejected(note_id)
+                    st.session_state.confirm_delete = None
+                    st.toast("Note rejected")
+                    st.rerun()
+            with conf_col2:
+                if st.button("Cancel", use_container_width=True):
+                    st.session_state.confirm_delete = None
+                    st.rerun()
+        else:
+            if st.button("🗑️ Reject", type="secondary", use_container_width=True):
+                st.session_state.confirm_delete = note_id
                 st.rerun()
 
 with col_info:

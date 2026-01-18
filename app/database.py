@@ -565,6 +565,16 @@ def mark_note_error(note_id: int, error_message: str) -> None:
     update_note_status(note_id, "error", error_message)
 
 
+def mark_note_rejected(note_id: int) -> None:
+    """Set status to 'rejected' - removes from queue but keeps record."""
+    update_note_status(note_id, "rejected")
+
+
+def move_note_to_review(note_id: int) -> None:
+    """Move a rejected or approved note back to review queue."""
+    update_note_status(note_id, "review")
+
+
 def update_note_page_count(note_id: int, page_count: int) -> None:
     """Update page count after PNG export."""
     with get_connection() as conn:

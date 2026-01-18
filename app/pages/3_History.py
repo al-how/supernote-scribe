@@ -9,11 +9,22 @@ import os
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from app.database import get_notes_history, init_db
+from app.database import (
+    get_notes_history,
+    get_extractions_for_note,
+    update_extraction_text,
+    move_note_to_review,
+    init_db,
+)
+from app.services.markdown import approve_and_save_note
 import app.styles as styles
 
 # Initialize DB
 init_db()
+
+# Initialize session state for edit mode
+if "editing_note_id" not in st.session_state:
+    st.session_state.editing_note_id = None
 
 st.set_page_config(page_title="History", page_icon="📜", layout="wide")
 styles.load_css()
@@ -32,8 +43,8 @@ with st.expander("🔎 Search & Filter", expanded=True):
     with col2:
         status_filter = st.multiselect(
             "Status",
-            options=["approved", "auto_approved", "completed", "error", "pending", "review"],
-            default=["approved", "auto_approved"]
+            options=["approved", "auto_approved", "completed", "error", "pending", "review", "rejected"],
+            default=["approved", "auto_approved", "rejected"]
         )
     
     with col3:
@@ -90,11 +101,110 @@ event = st.dataframe(
 if event.selection.rows:
     idx = event.selection.rows[0]
     selected_note = notes[idx]
-    
+    note_id = selected_note['id']
+
     st.divider()
     st.header(f"📄 {selected_note['file_name']}")
-    
-    col1, col2 = st.columns([1, 1])
+
+    # Action Buttons
+    action_col1, action_col2, action_col3 = st.columns([1, 1, 2])
+
+    with action_col1:
+        # For rejected notes: show recovery button
+        if selected_note['status'] == 'rejected':
+            if st.button("↩️ Move to Review", type="primary", use_container_width=True):
+                move_note_to_review(note_id)
+                st.success("Note moved back to review queue!")
+                st.rerun()
+
+    with action_col2:
+        # For approved/auto_approved notes: show edit button
+        if selected_note['status'] in ['approved', 'auto_approved']:
+            if st.session_state.editing_note_id == note_id:
+                if st.button("❌ Cancel Edit", use_container_width=True):
+                    st.session_state.editing_note_id = None
+                    st.rerun()
+            else:
+                if st.button("✏️ Edit", type="primary", use_container_width=True):
+                    st.session_state.editing_note_id = note_id
+                    st.rerun()
+
+    st.divider()
+
+    # Edit Mode
+    if st.session_state.editing_note_id == note_id:
+        st.subheader("Edit Mode")
+        extractions = get_extractions_for_note(note_id)
+
+        if not extractions:
+            st.error("No extractions found for this note.")
+        else:
+            # Use tabs for multi-page notes
+            if len(extractions) > 1:
+                edit_tabs = st.tabs([f"Page {i+1}" for i in range(len(extractions))])
+            else:
+                edit_tabs = [st.container()]
+
+            # Dictionary to hold current text values
+            current_texts = {}
+
+            for i, (tab, ext) in enumerate(zip(edit_tabs, extractions)):
+                with tab:
+                    edit_col1, edit_col2 = st.columns([1, 1])
+
+                    with edit_col1:
+                        st.markdown("**Original Image**")
+                        if ext["png_cache_path"] and Path(ext["png_cache_path"]).exists():
+                            st.image(ext["png_cache_path"], use_container_width=True)
+                        else:
+                            st.warning("⚠️ Image not found in cache.")
+
+                    with edit_col2:
+                        st.markdown(f"**Text (Page {i+1})**")
+
+                        # Initial value: edited_text if exists, else raw_text
+                        initial_value = ext["edited_text"] if ext["edited_text"] is not None else ext["raw_text"]
+
+                        # Text Area
+                        text_key = f"edit_text_{ext['id']}"
+                        val = st.text_area(
+                            "Edit Text",
+                            value=initial_value,
+                            height=600,
+                            key=text_key,
+                            label_visibility="collapsed"
+                        )
+                        current_texts[ext['id']] = val
+
+            # Save Changes Button
+            st.divider()
+            save_col1, save_col2, save_col3 = st.columns([1, 1, 2])
+
+            with save_col1:
+                if st.button("💾 Save Changes", type="primary", use_container_width=True):
+                    try:
+                        # Update all extractions
+                        for ext_id, text in current_texts.items():
+                            update_extraction_text(ext_id, text)
+
+                        # Regenerate markdown and update to 'approved' status
+                        out_path = approve_and_save_note(note_id)
+
+                        st.success(f"Changes saved to: `{out_path}`")
+                        st.session_state.editing_note_id = None
+                        st.rerun()
+
+                    except Exception as e:
+                        st.error(f"Failed to save changes: {e}")
+
+            with save_col2:
+                if st.button("Cancel", use_container_width=True):
+                    st.session_state.editing_note_id = None
+                    st.rerun()
+
+    else:
+        # Normal Detail View (not editing)
+        col1, col2 = st.columns([1, 1])
     
     with col1:
         st.markdown("**Metadata**")
