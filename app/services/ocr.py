@@ -45,16 +45,26 @@ def _encode_image_base64(image_path: Path) -> str:
     return base64.b64encode(image_path.read_bytes()).decode("utf-8")
 
 
-def ocr_with_ollama(image_path: Path, settings: Settings) -> str | None:
+def ocr_with_ollama(
+    image_path: Path,
+    settings: Settings,
+    log_callback: Callable[[str], None] | None = None,
+) -> str | None:
     """Extract text from image using Ollama vision model.
 
     Args:
         image_path: Path to PNG image
         settings: Application settings (Ollama URL, model, timeout)
+        log_callback: Optional callback for log messages
 
     Returns:
         Extracted text, or None if OCR failed
     """
+    def log(msg: str):
+        logger.warning(msg)
+        if log_callback:
+            log_callback(msg)
+
     try:
         image_b64 = _encode_image_base64(image_path)
 
@@ -73,6 +83,8 @@ def ocr_with_ollama(image_path: Path, settings: Settings) -> str | None:
         }
 
         logger.info(f"Calling Ollama OCR: {url} (model: {settings.ollama_model})")
+        if log_callback:
+            log_callback(f"Ollama: Connecting to {settings.ollama_url} (model: {settings.ollama_model})")
 
         with httpx.Client(timeout=settings.ocr_timeout) as client:
             response = client.post(url, json=payload)
@@ -82,46 +94,60 @@ def ocr_with_ollama(image_path: Path, settings: Settings) -> str | None:
 
         # Check for error in response
         if "error" in data:
-            logger.warning(f"Ollama returned error: {data['error']}")
+            log(f"Ollama returned error: {data['error']}")
             return None
 
         extracted_text = data.get("response", "")
 
         logger.info(f"Ollama OCR succeeded ({len(extracted_text)} chars)")
+        if log_callback:
+            log_callback(f"Ollama: Success ({len(extracted_text)} chars)")
         return extracted_text
 
     except httpx.TimeoutException:
-        logger.warning(f"Ollama OCR timeout ({settings.ocr_timeout}s)")
+        log(f"Ollama OCR timeout ({settings.ocr_timeout}s)")
         return None
     except httpx.ConnectError as e:
-        logger.warning(f"Ollama connection error: {e}")
+        log(f"Ollama connection error: {e}")
         return None
     except httpx.HTTPStatusError as e:
-        logger.warning(f"Ollama HTTP error: {e.response.status_code}")
+        log(f"Ollama HTTP error: {e.response.status_code}")
         return None
     except (KeyError, ValueError) as e:
-        logger.warning(f"Ollama response parsing error: {e}")
+        log(f"Ollama response parsing error: {e}")
         return None
     except FileNotFoundError:
         raise  # Re-raise file not found
     except Exception as e:
-        logger.error(f"Unexpected Ollama error: {e}")
+        log(f"Unexpected Ollama error: {e}")
         return None
 
 
-def ocr_with_openai(image_path: Path, settings: Settings) -> str | None:
+def ocr_with_openai(
+    image_path: Path,
+    settings: Settings,
+    log_callback: Callable[[str], None] | None = None,
+) -> str | None:
     """Extract text from image using OpenAI vision model.
 
     Args:
         image_path: Path to PNG image
         settings: Application settings (API key, model, timeout)
+        log_callback: Optional callback for log messages
 
     Returns:
         Extracted text, or None if OCR failed or API key not configured
     """
+    def log(msg: str):
+        logger.warning(msg)
+        if log_callback:
+            log_callback(msg)
+
     # Check if API key is configured
     if not settings.openai_api_key or settings.openai_api_key.strip() == "":
         logger.debug("OpenAI API key not configured, skipping")
+        if log_callback:
+            log_callback("OpenAI: API key not configured")
         return None
 
     try:
@@ -159,6 +185,8 @@ def ocr_with_openai(image_path: Path, settings: Settings) -> str | None:
         }
 
         logger.info(f"Calling OpenAI OCR (model: {settings.openai_model})")
+        if log_callback:
+            log_callback(f"OpenAI: Calling API (model: {settings.openai_model})")
 
         with httpx.Client(timeout=settings.ocr_timeout) as client:
             response = client.post(url, headers=headers, json=payload)
@@ -168,21 +196,23 @@ def ocr_with_openai(image_path: Path, settings: Settings) -> str | None:
         extracted_text = data["choices"][0]["message"]["content"]
 
         logger.info(f"OpenAI OCR succeeded ({len(extracted_text)} chars)")
+        if log_callback:
+            log_callback(f"OpenAI: Success ({len(extracted_text)} chars)")
         return extracted_text
 
     except httpx.TimeoutException:
-        logger.warning(f"OpenAI OCR timeout ({settings.ocr_timeout}s)")
+        log(f"OpenAI OCR timeout ({settings.ocr_timeout}s)")
         return None
     except httpx.HTTPStatusError as e:
-        logger.warning(f"OpenAI HTTP error: {e.response.status_code}")
+        log(f"OpenAI HTTP error: {e.response.status_code}")
         return None
     except (KeyError, ValueError) as e:
-        logger.warning(f"OpenAI response parsing error: {e}")
+        log(f"OpenAI response parsing error: {e}")
         return None
     except FileNotFoundError:
         raise  # Re-raise file not found
     except Exception as e:
-        logger.error(f"Unexpected OpenAI error: {e}")
+        log(f"Unexpected OpenAI error: {e}")
         return None
 
 
@@ -191,6 +221,7 @@ def extract_text_from_image(
     settings: Settings,
     prefer_openai: bool = False,
     status_callback: Callable[[str], None] | None = None,
+    log_callback: Callable[[str], None] | None = None,
 ) -> tuple[str, str]:
     """Extract text from image with automatic fallback between providers.
 
@@ -202,6 +233,7 @@ def extract_text_from_image(
         settings: Application settings
         prefer_openai: If True, use OpenAI as primary (default: False, use Ollama)
         status_callback: Optional callback for status updates (e.g., "Sending to Ollama...")
+        log_callback: Optional callback for log messages (errors, warnings)
 
     Returns:
         Tuple of (extracted_text, provider_used) where provider is "ollama" or "openai"
@@ -227,7 +259,7 @@ def extract_text_from_image(
     if status_callback:
         status_callback(f"Sending to {primary_name.title()}...")
 
-    result = primary_fn(image_path, settings)
+    result = primary_fn(image_path, settings, log_callback=log_callback)
 
     if result is not None:
         return (result, primary_name)
@@ -237,7 +269,7 @@ def extract_text_from_image(
     if status_callback:
         status_callback(f"{primary_name.title()} failed, trying {fallback_name.title()}...")
 
-    result = fallback_fn(image_path, settings)
+    result = fallback_fn(image_path, settings, log_callback=log_callback)
 
     if result is not None:
         return (result, fallback_name)
@@ -249,4 +281,6 @@ def extract_text_from_image(
         f"Check logs for details."
     )
     logger.error(error_msg)
+    if log_callback:
+        log_callback(error_msg)
     raise OCRError(error_msg)

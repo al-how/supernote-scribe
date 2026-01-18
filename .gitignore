@@ -41,10 +41,12 @@ data/
 *.db
 *.db-shm
 *.db-wal
+.abort_processing
 
 # OS
 .DS_Store
 Thumbs.db
 
 # Tests
-tests/*
+tests/
+docs/notes-to-self/

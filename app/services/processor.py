@@ -22,6 +22,7 @@ from app.database import (
     get_pending_notes,
     get_aggregated_text,
     mark_note_processing,
+    mark_note_pending,
     mark_note_for_review,
     mark_note_auto_approved,
     mark_note_error,
@@ -51,7 +52,7 @@ class ProcessResult:
     """Result of processing a single note."""
 
     note_id: int
-    status: Literal["auto_approved", "review", "error"]
+    status: Literal["auto_approved", "review", "error", "aborted"]
     page_count: int
     char_count: int
     output_path: str | None
@@ -68,6 +69,7 @@ class BatchProcessResult:
     review_queued: int
     errors: int
     error_details: list[tuple[int, str]]  # (note_id, error_message)
+    aborted: bool = False  # True if processing was aborted by user
 
 
 # =============================================================================
@@ -82,6 +84,12 @@ BatchProgressCallback = Callable[[str, int, int, str], None]
 
 # (message) for detailed UI messages like "Exporting page 1 of 3..."
 DetailCallback = Callable[[str], None]
+
+# () -> bool: returns True if abort was requested
+AbortCheckCallback = Callable[[], bool]
+
+# (message) for log messages like errors, warnings, GPU info
+LogCallback = Callable[[str], None]
 
 
 # =============================================================================
@@ -116,6 +124,8 @@ def process_single_note(
     settings: Settings | None = None,
     progress_callback: SingleNoteProgressCallback | None = None,
     detail_callback: DetailCallback | None = None,
+    log_callback: LogCallback | None = None,
+    abort_check: AbortCheckCallback | None = None,
     prefer_openai: bool = False,
 ) -> ProcessResult:
     """
@@ -125,7 +135,7 @@ def process_single_note(
     1. Get note from database
     2. Mark as processing
     3. Export PNGs
-    4. OCR each page
+    4. OCR each page (checks for abort between pages)
     5. Get aggregated text
     6. Auto-approve or queue for review
     7. Log activity
@@ -135,10 +145,12 @@ def process_single_note(
         settings: Application settings (defaults to global settings)
         progress_callback: Optional callback for progress updates
         detail_callback: Optional callback for detailed status messages
+        log_callback: Optional callback for log messages (errors, warnings)
+        abort_check: Optional callback that returns True if abort requested
         prefer_openai: If True, use OpenAI as primary OCR
 
     Returns:
-        ProcessResult with status and metadata
+        ProcessResult with status and metadata (status can be "aborted" if abort_check returns True)
 
     Raises:
         ValueError: If note_id not found in database
@@ -173,6 +185,21 @@ def process_single_note(
 
         # 4. OCR each page
         for page_num, png_path in enumerate(png_paths):
+            # Check for abort before each page
+            if abort_check and abort_check():
+                logger.info(f"Abort requested during OCR of note {note_id}, resetting to pending")
+                if log_callback:
+                    log_callback(f"Aborted during page {page_num + 1}/{page_count}, note reset to pending")
+                mark_note_pending(note_id)
+                return ProcessResult(
+                    note_id=note_id,
+                    status="aborted",
+                    page_count=page_count,
+                    char_count=0,
+                    output_path=None,
+                    error_message="Processing aborted by user",
+                )
+
             if progress_callback:
                 progress_callback("ocr", page_num + 1, page_count)
 
@@ -187,7 +214,9 @@ def process_single_note(
             start_time = time.time()
             try:
                 text, provider = extract_text_from_image(
-                    png_path, settings, prefer_openai, status_callback=ocr_status
+                    png_path, settings, prefer_openai,
+                    status_callback=ocr_status,
+                    log_callback=log_callback,
                 )
                 time_ms = int((time.time() - start_time) * 1000)
 
@@ -206,7 +235,10 @@ def process_single_note(
                 )
 
             except OCRError as e:
-                logger.error(f"OCR failed for page {page_num}: {e}")
+                error_msg = f"OCR failed for page {page_num}: {e}"
+                logger.error(error_msg)
+                if log_callback:
+                    log_callback(error_msg)
                 # Insert empty extraction to track failure
                 insert_extraction(
                     note_id=note_id,
@@ -319,6 +351,8 @@ def process_pending_notes(
     settings: Settings | None = None,
     progress_callback: BatchProgressCallback | None = None,
     detail_callback: DetailCallback | None = None,
+    log_callback: LogCallback | None = None,
+    abort_check: AbortCheckCallback | None = None,
     prefer_openai: bool = False,
 ) -> BatchProcessResult:
     """
@@ -328,6 +362,8 @@ def process_pending_notes(
         settings: Application settings (defaults to global settings)
         progress_callback: Optional callback for batch progress updates
         detail_callback: Optional callback for detailed status messages
+        log_callback: Optional callback for log messages (errors, warnings)
+        abort_check: Optional callback that returns True if abort requested
         prefer_openai: If True, use OpenAI as primary OCR
 
     Returns:
@@ -352,9 +388,18 @@ def process_pending_notes(
     review_queued = 0
     errors = 0
     error_details: list[tuple[int, str]] = []
+    aborted = False
 
     # Process each note
     for idx, note in enumerate(pending_notes):
+        # Check if abort was requested
+        if abort_check and abort_check():
+            logger.info("Processing aborted by user")
+            if log_callback:
+                log_callback("Processing aborted by user")
+            aborted = True
+            break
+
         note_id = note["id"]
         note_name = note["file_name"]
 
@@ -362,14 +407,24 @@ def process_pending_notes(
             progress_callback("processing", idx + 1, total_notes, note_name)
 
         logger.info(f"Processing note {idx + 1}/{total_notes}: {note_name}")
+        if log_callback:
+            log_callback(f"Processing: {note_name}")
 
         # Process the note
         result = process_single_note(
             note_id=note_id,
             settings=settings,
             detail_callback=detail_callback,
+            log_callback=log_callback,
+            abort_check=abort_check,
             prefer_openai=prefer_openai,
         )
+
+        # If processing was aborted mid-note, stop the batch
+        if result.status == "aborted":
+            logger.info("Note processing was aborted, stopping batch")
+            aborted = True
+            break
 
         # Update counters
         processed += 1
@@ -383,7 +438,10 @@ def process_pending_notes(
             error_details.append((note_id, result.error_message or "Unknown error"))
 
     if progress_callback:
-        progress_callback("complete", total_notes, total_notes, "")
+        if aborted:
+            progress_callback("aborted", processed, total_notes, "")
+        else:
+            progress_callback("complete", total_notes, total_notes, "")
 
     logger.info(
         f"Batch processing complete: {processed} processed, "
@@ -409,6 +467,7 @@ def process_pending_notes(
         review_queued=review_queued,
         errors=errors,
         error_details=error_details,
+        aborted=aborted,
     )
 
 

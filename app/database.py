@@ -570,6 +570,11 @@ def mark_note_rejected(note_id: int) -> None:
     update_note_status(note_id, "rejected")
 
 
+def mark_note_pending(note_id: int) -> None:
+    """Reset status to 'pending' - used when processing is aborted."""
+    update_note_status(note_id, "pending")
+
+
 def move_note_to_review(note_id: int) -> None:
     """Move a rejected or approved note back to review queue."""
     update_note_status(note_id, "review")
