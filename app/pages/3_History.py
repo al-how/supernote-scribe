@@ -110,8 +110,8 @@ if event.selection.rows:
     action_col1, action_col2, action_col3 = st.columns([1, 1, 2])
 
     with action_col1:
-        # For rejected notes: show recovery button
-        if selected_note['status'] == 'rejected':
+        # For rejected and auto_approved notes: show recovery button
+        if selected_note['status'] in ['rejected', 'auto_approved']:
             if st.button("↩️ Move to Review", type="primary", use_container_width=True):
                 move_note_to_review(note_id)
                 st.success("Note moved back to review queue!")
@@ -178,7 +178,7 @@ if event.selection.rows:
 
             # Save Changes Button
             st.divider()
-            save_col1, save_col2, save_col3 = st.columns([1, 1, 2])
+            save_col1, save_col2 = st.columns([1, 2])
 
             with save_col1:
                 if st.button("💾 Save Changes", type="primary", use_container_width=True):
@@ -197,37 +197,32 @@ if event.selection.rows:
                     except Exception as e:
                         st.error(f"Failed to save changes: {e}")
 
-            with save_col2:
-                if st.button("Cancel", use_container_width=True):
-                    st.session_state.editing_note_id = None
-                    st.rerun()
-
     else:
         # Normal Detail View (not editing)
         col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        st.markdown("**Metadata**")
-        st.json({
-            "Source": selected_note["file_path"],
-            "Output": selected_note["output_path"],
-            "Processed": selected_note["processed_at"],
-            "Approved": selected_note["approved_at"],
-            "Status": selected_note["status"]
-        })
-        
-        # Link to open file (if local) - usually not possible in browser but we can show path
-        if selected_note["output_path"]:
-             st.info(f"Output saved to: `{selected_note['output_path']}`")
 
-    with col2:
-        st.markdown("**Content Preview**")
-        if selected_note["output_path"] and Path(selected_note["output_path"]).exists():
-            try:
-                content = Path(selected_note["output_path"]).read_text(encoding="utf-8")
-                st.text_area("Markdown Content", value=content, height=400)
-            except Exception as e:
-                st.error(f"Could not read file: {e}")
-        else:
-            st.warning("Output file not found (moved or deleted).")
+        with col1:
+            st.markdown("**Metadata**")
+            st.json({
+                "Source": selected_note["file_path"],
+                "Output": selected_note["output_path"],
+                "Processed": selected_note["processed_at"],
+                "Approved": selected_note["approved_at"],
+                "Status": selected_note["status"]
+            })
+
+            # Link to open file (if local) - usually not possible in browser but we can show path
+            if selected_note["output_path"]:
+                 st.info(f"Output saved to: `{selected_note['output_path']}`")
+
+        with col2:
+            st.markdown("**Content Preview**")
+            if selected_note["output_path"] and Path(selected_note["output_path"]).exists():
+                try:
+                    content = Path(selected_note["output_path"]).read_text(encoding="utf-8")
+                    st.code(content, language="markdown", line_numbers=False)
+                except Exception as e:
+                    st.error(f"Could not read file: {e}")
+            else:
+                st.warning("Output file not found (moved or deleted).")
 

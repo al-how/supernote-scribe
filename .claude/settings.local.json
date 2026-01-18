@@ -18,7 +18,8 @@
       "Bash(python -m app:*)",
       "Bash(set SOURCE_PATH=tests/fixtures)",
       "Bash(pip show:*)",
-      "Bash(dir /s /b \"C:\\\\Users\\\\alexn\\\\Documents\\\\Personal_Vault\\\\*Journals*\")"
+      "Bash(dir /s /b \"C:\\\\Users\\\\alexn\\\\Documents\\\\Personal_Vault\\\\*Journals*\")",
+      "Skill(frontend-design:frontend-design)"
     ]
   }
 }

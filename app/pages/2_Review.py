@@ -65,7 +65,7 @@ extractions = get_extractions_for_note(note_id)
 if not extractions:
     st.error("⚠️ Note has no extracted pages. It might have failed processing.")
     if st.button("Delete Note"):
-        delete_note(note_id)
+        mark_note_rejected(note_id)
         st.rerun()
     st.stop()
 
