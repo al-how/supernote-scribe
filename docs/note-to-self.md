@@ -9,4 +9,8 @@ But it does save it if you manually type it out
 
 I'd like a way to blast the database so i can test from scratch
 
-Ok so next big move: 
+Ok so next big move:
+- first, set up a method to remove the history so i can test from scratch. Then:
+- all notes are auto approved if they pass the threshold, but there's a full review/refinement path: 
+    - pngs on one size, extracted text (editable) on the other
+    - changes are tracked for future improvements
