@@ -110,31 +110,41 @@ if st.session_state.discovered_notes:
         if st.button("Select All", use_container_width=True):
             for note in st.session_state.discovered_notes:
                 note["selected"] = True
+            if "selection_df" in st.session_state:
+                del st.session_state.selection_df
             st.rerun()
     with col_none:
         if st.button("Deselect All", use_container_width=True):
             for note in st.session_state.discovered_notes:
                 note["selected"] = False
+            if "selection_df" in st.session_state:
+                del st.session_state.selection_df
             st.rerun()
     with col_clear:
         if st.button("Clear List", use_container_width=True):
             st.session_state.discovered_notes = []
+            if "selection_df" in st.session_state:
+                del st.session_state.selection_df
             st.rerun()
 
     # Create dataframe for display
     import pandas as pd
 
-    df_data = []
-    for i, note in enumerate(st.session_state.discovered_notes):
-        df_data.append({
-            "Select": note["selected"],
-            "Filename": note["file_name"],
-            "Folder": note["source_folder"],
-            "Status": note["status"],
-            "row_id": i,
-        })
-
-    df = pd.DataFrame(df_data)
+    # Check if we have a stored DataFrame that matches current discovered_notes
+    if "selection_df" in st.session_state and len(st.session_state.get("selection_df", [])) == len(st.session_state.discovered_notes):
+        df = st.session_state.selection_df
+    else:
+        # Create fresh df from discovered_notes (initial state only)
+        df_data = []
+        for i, note in enumerate(st.session_state.discovered_notes):
+            df_data.append({
+                "Select": note["selected"],
+                "Filename": note["file_name"],
+                "Folder": note["source_folder"],
+                "Status": note["status"],
+                "row_id": i,
+            })
+        df = pd.DataFrame(df_data)
 
     # Editable data table
     edited_df = st.data_editor(
@@ -151,7 +161,10 @@ if st.session_state.discovered_notes:
         key="note_selection_editor",
     )
 
-    # Update session state from edited dataframe
+    # Store edited df for next rerun (this is the key fix!)
+    st.session_state.selection_df = edited_df
+
+    # Also sync to discovered_notes for the button handler
     for _, row in edited_df.iterrows():
         idx = int(row["row_id"])
         st.session_state.discovered_notes[idx]["selected"] = row["Select"]
@@ -181,6 +194,8 @@ if st.session_state.discovered_notes:
 
             # Clear discovered notes after inserting
             st.session_state.discovered_notes = []
+            if "selection_df" in st.session_state:
+                del st.session_state.selection_df
             st.success(f"Inserted {inserted} notes into queue. Processing will start below.")
             st.rerun()
     else:
