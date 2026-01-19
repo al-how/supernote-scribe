@@ -2,6 +2,8 @@
 
 A Python Streamlit application designed to automate the conversion of handwritten Supernote `.note` files to digital text using local vision AI (Ollama) and export them to an Obsidian vault.
 
+Test Push
+
 ## Features
 
 *   **Scanning:** Automatically detects `.note` files in a synchronized directory.
