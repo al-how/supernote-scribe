@@ -27,6 +27,9 @@ wheels/
 .env
 .venv
 
+# Docker
+.dockerignore
+
 # IDE
 .vscode/
 .idea/
@@ -42,6 +45,8 @@ data/
 *.db-shm
 *.db-wal
 .abort_processing
+png_cache/
+.streamlit/
 
 # OS
 .DS_Store
