@@ -131,7 +131,7 @@ if st.session_state.discovered_notes:
             "Filename": note["file_name"],
             "Folder": note["source_folder"],
             "Status": note["status"],
-            "_index": i,
+            "row_id": i,
         })
 
     df = pd.DataFrame(df_data)
@@ -144,7 +144,7 @@ if st.session_state.discovered_notes:
             "Filename": st.column_config.TextColumn("Filename", disabled=True),
             "Folder": st.column_config.TextColumn("Folder", disabled=True),
             "Status": st.column_config.TextColumn("Status", disabled=True),
-            "_index": None,  # Hide index column
+            "row_id": None,  # Hide row_id column
         },
         hide_index=True,
         use_container_width=True,
@@ -153,7 +153,7 @@ if st.session_state.discovered_notes:
 
     # Update session state from edited dataframe
     for _, row in edited_df.iterrows():
-        idx = int(row["_index"])
+        idx = int(row["row_id"])
         st.session_state.discovered_notes[idx]["selected"] = row["Select"]
 
     # Count selected
