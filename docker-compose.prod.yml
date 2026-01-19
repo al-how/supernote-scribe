@@ -1,0 +1,28 @@
+services:
+  supernote-converter:
+    # REPLACE 'YOUR_GITHUB_USERNAME' with your actual GitHub username (lowercase)
+    # Example: image: ghcr.io/alexn/supernote-converter:latest
+    image: ghcr.io/YOUR_GITHUB_USERNAME/supernote-converter:latest
+    container_name: supernote-converter
+    restart: unless-stopped
+    ports:
+      - "8086:8501"
+    volumes:
+      # Map your host directories here.
+      # Left side: Path on your server (NAS/Unraid)
+      # Right side: Path inside the container (Do not change)
+      - ${HOST_SOURCE_PATH}:/data/source:ro
+      - ${HOST_OUTPUT_PATH}:/data/output
+      - ${HOST_DATA_PATH}:/app/data
+    environment:
+      # Timezone configuration
+      - TZ=${TZ:-America/Chicago}
+      # Application Paths (Internal to container, usually don't need changing)
+      - SOURCE_PATH=${SOURCE_PATH}
+      - OUTPUT_PATH=${OUTPUT_PATH}
+      # AI Service Configuration
+      - OLLAMA_URL=${OLLAMA_URL}
+      - OLLAMA_MODEL=${OLLAMA_MODEL}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    env_file:
+      - .env

@@ -10,9 +10,9 @@ import os
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from app.services.scanner import scan_and_insert
+from app.services.scanner import scan_source_directory
 from app.services.processor import process_pending_notes
-from app.database import get_pending_notes, init_db
+from app.database import get_pending_notes, init_db, upsert_note, get_note_by_path
 import app.styles as styles
 
 # Abort flag file (used to signal abort across Streamlit reruns)
@@ -34,6 +34,10 @@ def check_abort_flag() -> bool:
 # Initialize session state for logs
 if "processing_logs" not in st.session_state:
     st.session_state.processing_logs = []
+
+# Initialize session state for discovered notes selection
+if "discovered_notes" not in st.session_state:
+    st.session_state.discovered_notes = []
 
 # Initialize DB
 init_db()
@@ -77,19 +81,116 @@ st.caption(f"Scanning directory: `{current_source}`")
 
 if scan_btn:
     with st.spinner(f"Scanning {current_source}..."):
-        # Convert date to datetime.date (streamlit returns date)
-        new, updated, skipped = scan_and_insert(cutoff_date=cutoff_date)
-        
-        if new > 0 or updated > 0:
-            st.success(f"Scan complete: {new} new, {updated} updated, {skipped} skipped.")
+        # Discover files without inserting into database
+        discovered = scan_source_directory(cutoff_date=cutoff_date)
+
+        # Add selection state and check if already in database
+        for note in discovered:
+            existing = get_note_by_path(note["file_path"])
+            note["selected"] = True  # Default all selected
+            note["status"] = "new" if existing is None else "exists"
+
+        st.session_state.discovered_notes = discovered
+
+        if discovered:
+            st.success(f"Found {len(discovered)} notes. Select which ones to process below.")
         else:
-            st.info(f"No new notes found. ({skipped} skipped)")
+            st.info("No notes found matching the cutoff date.")
 
 # ============================================================================
-# Process Configuration
+# File Selection (shown after scan)
+# ============================================================================
+if st.session_state.discovered_notes:
+    st.divider()
+    st.subheader("2. Select Notes to Process")
+
+    # Select All / Deselect All buttons
+    col_all, col_none, col_clear = st.columns([1, 1, 1])
+    with col_all:
+        if st.button("Select All", use_container_width=True):
+            for note in st.session_state.discovered_notes:
+                note["selected"] = True
+            st.rerun()
+    with col_none:
+        if st.button("Deselect All", use_container_width=True):
+            for note in st.session_state.discovered_notes:
+                note["selected"] = False
+            st.rerun()
+    with col_clear:
+        if st.button("Clear List", use_container_width=True):
+            st.session_state.discovered_notes = []
+            st.rerun()
+
+    # Create dataframe for display
+    import pandas as pd
+
+    df_data = []
+    for i, note in enumerate(st.session_state.discovered_notes):
+        df_data.append({
+            "Select": note["selected"],
+            "Filename": note["file_name"],
+            "Folder": note["source_folder"],
+            "Status": note["status"],
+            "_index": i,
+        })
+
+    df = pd.DataFrame(df_data)
+
+    # Editable data table
+    edited_df = st.data_editor(
+        df,
+        column_config={
+            "Select": st.column_config.CheckboxColumn("Select", default=True),
+            "Filename": st.column_config.TextColumn("Filename", disabled=True),
+            "Folder": st.column_config.TextColumn("Folder", disabled=True),
+            "Status": st.column_config.TextColumn("Status", disabled=True),
+            "_index": None,  # Hide index column
+        },
+        hide_index=True,
+        use_container_width=True,
+        key="note_selection_editor",
+    )
+
+    # Update session state from edited dataframe
+    for _, row in edited_df.iterrows():
+        idx = int(row["_index"])
+        st.session_state.discovered_notes[idx]["selected"] = row["Select"]
+
+    # Count selected
+    selected_count = sum(1 for n in st.session_state.discovered_notes if n["selected"])
+    total_count = len(st.session_state.discovered_notes)
+    st.info(f"Selected: **{selected_count}** of {total_count} notes")
+
+    # Process Selected button
+    if selected_count > 0:
+        if st.button(f"Process {selected_count} Selected Notes", type="primary", use_container_width=True):
+            # Insert only selected notes into database
+            inserted = 0
+            for note in st.session_state.discovered_notes:
+                if note["selected"]:
+                    upsert_note(
+                        file_path=note["file_path"],
+                        file_name=note["file_name"],
+                        file_modified_at=note["file_modified_at"],
+                        source_folder=note["source_folder"],
+                        output_folder=note["output_folder"],
+                        file_hash=note["file_hash"],
+                        file_size_bytes=note["file_size_bytes"],
+                    )
+                    inserted += 1
+
+            # Clear discovered notes after inserting
+            st.session_state.discovered_notes = []
+            st.success(f"Inserted {inserted} notes into queue. Processing will start below.")
+            st.rerun()
+    else:
+        st.warning("No notes selected. Use checkboxes above to select notes to process.")
+
+# ============================================================================
+# Process Pending Notes
 # ============================================================================
 st.divider()
-st.subheader("2. Process Pending Notes")
+st.subheader("3. Process Pending Notes")
 
 # Check pending count
 pending_notes = get_pending_notes()

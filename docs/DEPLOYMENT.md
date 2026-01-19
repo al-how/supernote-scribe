@@ -108,3 +108,39 @@ Add to `/etc/cron.d/supernote`:
 
 *   **Ollama Connection Refused:**
     Ensure you are using the correct IP address for `OLLAMA_URL`. `localhost` inside the container refers to the container itself, not the Unraid host. Use the Unraid LAN IP.
+
+---
+
+# Automated Deployment (GitHub Actions)
+
+This method avoids manually copying files and building locally. Instead, GitHub builds the image and you simply pull it down.
+
+### 1. GitHub Setup
+
+1.  Go to your GitHub repository **Settings**.
+2.  Navigate to **Actions** -> **General**.
+3.  Under **Workflow permissions**, ensure **Read and write permissions** is selected. This allows the workflow to push packages.
+
+### 2. Server Setup
+
+1.  Copy `docker-compose.prod.yml` to your server (rename it to `docker-compose.yml` if you want it to be the default).
+2.  Edit the file to replace `YOUR_GITHUB_USERNAME` with your actual username.
+3.  Ensure your `.env` file is present in the same directory.
+
+### 3. Usage
+
+**To install/update:**
+
+```bash
+# Pull the latest image
+docker-compose -f docker-compose.prod.yml pull
+
+# Restart the container
+docker-compose -f docker-compose.prod.yml up -d
+```
+
+**Workflow:**
+1.  Push changes to GitHub.
+2.  Create a **Release** on GitHub (e.g., v1.0.0).
+3.  Wait for the "Docker Image CI" action to complete.
+4.  Run the update commands on your server.
