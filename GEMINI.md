@@ -17,6 +17,11 @@ Always write plans to this project directory, eg C:\Users\alexn\Documents\Projec
 *   **Export:** Generates Markdown files with frontmatter for Obsidian.
 *   **Automation:** Supports headless CLI execution for cron jobs.
 
+## Status
+*   **Current State:** Fully functional and deployed.
+*   **Deployment:** Running on Unraid via Docker Compose.
+*   **Automation:** Scheduled via Unraid User Scripts for periodic headless processing.
+
 **Tech Stack:**
 *   **Language:** Python
 *   **UI Framework:** Streamlit
@@ -32,11 +37,14 @@ The application is structured as a modular Streamlit app:
     *   **`Home.py`**: Entry point for the Streamlit web interface (Dashboard).
     *   **`__main__.py`**: Entry point for CLI/Headless mode.
     *   **`pages/`**: Individual Streamlit pages (Scan, Review, History, Settings).
-    *   **`services/`**: Core business logic modules (`scanner`, `exporter`, `ocr`, `processor`, `markdown`).
+    *   **`services/`**: Core business logic modules (`scanner`, `exporter`, `ocr`, `processor`, `markdown`, `connection_tester`).
     *   **`database.py`**: SQLite database interactions.
     *   **`config.py`**: Pydantic-based configuration management.
+    *   **`settings_manager.py`**: Logic for managing dynamic configuration changes.
+    *   **`styles.py`**: Custom CSS and UI styling components.
 *   **`data/`**: Directory for local data (SQLite DB, PNG cache), typically mounted as a volume.
 *   **`docs/`**: Documentation and planning files.
+    *   **`DEPLOYMENT.md`**: Guide for Unraid/Docker deployment.
 
 ## building and Running
 
