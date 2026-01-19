@@ -69,7 +69,7 @@ This guide covers how to deploy the Supernote Converter application to an Unraid
 
 ## 4. Verification
 
-1.  Access the web UI at `http://YOUR_UNRAID_IP:8085`.
+1.  Access the web UI at `http://YOUR_UNRAID_IP:8086`.
 2.  Go to **Settings** and verify the configuration.
 3.  Try scanning for notes.
 

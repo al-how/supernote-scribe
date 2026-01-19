@@ -1,10 +1,12 @@
 services:
   supernote-converter:
-    build: .
+    build:
+      context: /mnt/user/appdata/supernote-converter
+      dockerfile: Dockerfile
     container_name: supernote-converter
     restart: unless-stopped
     ports:
-      - "8085:8501"
+      - "8086:8501"
     volumes:
       # Volume paths configured via .env file
       - ${HOST_SOURCE_PATH}:/data/source:ro
