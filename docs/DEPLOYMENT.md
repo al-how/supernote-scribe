@@ -17,14 +17,14 @@ This guide covers how to deploy the Supernote Converter application to an Unraid
 ## 1. Preparation
 
 1.  **Create Directory on Unraid**
-    Create a directory for the application, e.g., `/mnt/user/appdata/supernote-converter/`.
+    Create a directory for the application, e.g., `/mnt/user/appdata/supernote-scribe/`.
 
 2.  **Transfer Files**
     Copy the files listed above to the new directory on your Unraid server.
 
     **Example via SCP:**
     ```bash
-    scp -r app/ Dockerfile docker-compose.yml requirements.txt .env.example root@YOUR_UNRAID_IP:/mnt/user/appdata/supernote-converter/
+    scp -r app/ Dockerfile docker-compose.yml requirements.txt .env.example root@YOUR_UNRAID_IP:/mnt/user/appdata/supernote-scribe/
     ```
 
 ## 2. Configuration
@@ -42,7 +42,7 @@ This guide covers how to deploy the Supernote Converter application to an Unraid
     # Example Unraid Configuration
     HOST_SOURCE_PATH=/mnt/cache/appdata/obsidian_vault_copy/Personal_Vault/03-Resources/supernote-notes
     HOST_OUTPUT_PATH=/mnt/cache/appdata/obsidian_vault_copy/Personal_Vault/03-Resources/Journals
-    HOST_DATA_PATH=/mnt/cache/appdata/supernote-converter
+    HOST_DATA_PATH=/mnt/cache/appdata/supernote-scribe
     
     OLLAMA_URL=http://192.168.1.138:11434  # Use your Unraid IP
     OLLAMA_MODEL=qwen3-vl:8b
@@ -53,7 +53,7 @@ This guide covers how to deploy the Supernote Converter application to an Unraid
 1.  **Build the Image**
     Navigate to the directory and build the Docker image.
     ```bash
-    cd /mnt/user/appdata/supernote-converter
+    cd /mnt/user/appdata/supernote-scribe
     docker-compose build
     ```
 
@@ -83,10 +83,10 @@ Create a new script:
 ```bash
 #!/bin/bash
 # Check if container is running before executing
-if docker ps | grep -q supernote-converter; then
-    docker exec supernote-converter python -m app --process
+if docker ps | grep -q supernote-scribe; then
+    docker exec supernote-scribe python -m app --process
 else
-    echo "Container supernote-converter is not running. Skipping."
+    echo "Container supernote-scribe is not running. Skipping."
     exit 1
 fi
 ```
@@ -95,7 +95,7 @@ Set the schedule to "Custom" or "Daily".
 **Alternative: Manual Cron**
 Add to `/etc/cron.d/supernote`:
 ```
-0 3 * * * root docker ps | grep -q supernote-converter && docker exec supernote-converter python -m app --process >> /var/log/supernote-converter.log 2>&1
+0 3 * * * root docker ps | grep -q supernote-scribe && docker exec supernote-scribe python -m app --process >> /var/log/supernote-scribe.log 2>&1
 ```
 
 ## Troubleshooting
@@ -103,7 +103,7 @@ Add to `/etc/cron.d/supernote`:
 *   **Permission Errors:**
     The container runs as root to maximize compatibility with Unraid shares. If you see permission denied errors, check the ownership of your mapped directories on the host.
     ```bash
-    chmod -R 777 /mnt/user/appdata/supernote-converter/data
+    chmod -R 777 /mnt/user/appdata/supernote-scribe/data
     ```
 
 *   **Ollama Connection Refused:**

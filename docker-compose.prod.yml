@@ -1,9 +1,9 @@
 services:
-  supernote-converter:
+  supernote-scribe:
     # REPLACE 'YOUR_GITHUB_USERNAME' with your actual GitHub username (lowercase)
-    # Example: image: ghcr.io/alexn/supernote-converter:latest
-    image: ghcr.io/YOUR_GITHUB_USERNAME/supernote-converter:latest
-    container_name: supernote-converter
+    # Example: image: ghcr.io/alexn/supernote-scribe:latest
+    image: ghcr.io/YOUR_GITHUB_USERNAME/supernote-scribe:latest
+    container_name: supernote-scribe
     restart: unless-stopped
     ports:
       - "8086:8501"

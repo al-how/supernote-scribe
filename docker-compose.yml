@@ -1,9 +1,9 @@
 services:
-  supernote-converter:
+  supernote-scribe:
     build:
-      context: /mnt/user/appdata/supernote-converter
+      context: /mnt/user/appdata/supernote-scribe
       dockerfile: Dockerfile
-    container_name: supernote-converter
+    container_name: supernote-scribe
     restart: unless-stopped
     ports:
       - "8086:8501"
