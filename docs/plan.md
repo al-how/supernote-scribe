@@ -237,7 +237,7 @@ def ocr_with_ollama(image_path: Path, ollama_url: str, model: str) -> str:
 7. **COMPLETE: Processor service** - Pipeline orchestration, auto-approve logic
 8. **COMPLETE: Markdown service** - Frontmatter builder, line processing
 9. **COMPLETE: Streamlit pages** - Dashboard (app.py), Scan, Review, History, Settings
-10. **Docker config** - Dockerfile, docker-compose.yml
+10. **COMPLETE: Docker config** - Dockerfile, docker-compose.yml
 11. **Local testing** - Run locally with sample .note files
 12. **Deploy to Unraid** - Copy to Unraid, configure paths, verify
 

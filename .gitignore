@@ -27,9 +27,6 @@ wheels/
 .env
 .venv
 
-# Docker
-.dockerignore
-
 # IDE
 .vscode/
 .idea/
