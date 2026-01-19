@@ -10,6 +10,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.database import init_db, count_notes_by_status, get_recent_activity
 import app.styles as styles
+from app import __version__
 
 # Initialize database on app startup
 init_db()
@@ -100,6 +101,9 @@ with st.expander("ℹ️ System Information"):
     config = manager.get_all()
 
     st.markdown(f"""
+    **System:**
+    - Version: `{__version__}`
+
     **Configuration:**
     - Source Path: `{config['source_path']}`
     - Output Path: `{config['output_path']}`

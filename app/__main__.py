@@ -16,6 +16,7 @@ from datetime import datetime
 from app.services.processor import run_batch_process
 from app.services.scanner import scan_and_insert
 from app.config import init_app
+from app import __version__
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -90,6 +91,12 @@ def main() -> int:
         "--verbose",
         action="store_true",
         help="Enable verbose logging (DEBUG level)",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+        help="Show program's version number and exit",
     )
 
     args = parser.parse_args()
