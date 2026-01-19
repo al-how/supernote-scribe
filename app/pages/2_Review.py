@@ -15,6 +15,7 @@ from app.database import (
     update_extraction_text,
     mark_note_for_review,
     mark_note_rejected,
+    reset_note_for_reprocessing,
     init_db,
 )
 from app.services.markdown import approve_and_save_note
@@ -23,9 +24,11 @@ import app.styles as styles
 # Initialize DB
 init_db()
 
-# Initialize session state for delete confirmation
+# Initialize session state for confirmations
 if "confirm_delete" not in st.session_state:
     st.session_state.confirm_delete = None
+if "confirm_rescan" not in st.session_state:
+    st.session_state.confirm_rescan = None
 
 st.set_page_config(page_title="Review Queue", page_icon="✏️", layout="wide")
 styles.load_css()
@@ -118,24 +121,24 @@ st.divider()
 col_actions, col_info = st.columns([2, 1])
 
 with col_actions:
-    c1, c2, c3 = st.columns(3)
-    
+    c1, c2, c3, c4 = st.columns(4)
+
     with c1:
         if st.button("✅ Approve & Save", type="primary", use_container_width=True):
             try:
                 # 1. Save all current edits to DB
                 for ext_id, text in current_texts.items():
                     update_extraction_text(ext_id, text)
-                
+
                 # 2. Generate Markdown and Mark Approved
                 out_path = approve_and_save_note(note_id)
-                
+
                 st.success(f"Saved to: `{out_path}`")
                 st.balloons()
-                
+
                 # Wait a bit then refresh
                 st.rerun()
-                
+
             except Exception as e:
                 st.error(f"Failed to approve: {e}")
 
@@ -147,6 +150,26 @@ with col_actions:
             st.toast("Draft saved!")
 
     with c3:
+        if st.session_state.confirm_rescan == note_id:
+            # Show confirmation buttons
+            st.warning("Re-OCR this note?")
+            conf_col1, conf_col2 = st.columns(2)
+            with conf_col1:
+                if st.button("Yes, Rescan", type="primary", use_container_width=True):
+                    reset_note_for_reprocessing(note_id)
+                    st.session_state.confirm_rescan = None
+                    st.toast("Note queued for rescan")
+                    st.rerun()
+            with conf_col2:
+                if st.button("Cancel", use_container_width=True, key="cancel_rescan"):
+                    st.session_state.confirm_rescan = None
+                    st.rerun()
+        else:
+            if st.button("🔄 Rescan", use_container_width=True):
+                st.session_state.confirm_rescan = note_id
+                st.rerun()
+
+    with c4:
         if st.session_state.confirm_delete == note_id:
             # Show confirmation buttons
             st.warning("Are you sure?")
@@ -158,7 +181,7 @@ with col_actions:
                     st.toast("Note rejected")
                     st.rerun()
             with conf_col2:
-                if st.button("Cancel", use_container_width=True):
+                if st.button("Cancel", use_container_width=True, key="cancel_reject"):
                     st.session_state.confirm_delete = None
                     st.rerun()
         else:

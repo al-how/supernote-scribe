@@ -14,6 +14,7 @@ from app.database import (
     get_extractions_for_note,
     update_extraction_text,
     move_note_to_review,
+    reset_note_for_reprocessing,
     init_db,
 )
 from app.services.markdown import approve_and_save_note
@@ -22,9 +23,11 @@ import app.styles as styles
 # Initialize DB
 init_db()
 
-# Initialize session state for edit mode
+# Initialize session state for edit mode and rescan
 if "editing_note_id" not in st.session_state:
     st.session_state.editing_note_id = None
+if "confirm_rescan_history" not in st.session_state:
+    st.session_state.confirm_rescan_history = None
 
 st.set_page_config(page_title="History", page_icon="📜", layout="wide")
 styles.load_css()
@@ -107,7 +110,7 @@ if event.selection.rows:
     st.header(f"📄 {selected_note['file_name']}")
 
     # Action Buttons
-    action_col1, action_col2, action_col3 = st.columns([1, 1, 2])
+    action_col1, action_col2, action_col3, action_col4 = st.columns([1, 1, 1, 1])
 
     with action_col1:
         # For rejected and auto_approved notes: show recovery button
@@ -128,6 +131,27 @@ if event.selection.rows:
                 if st.button("✏️ Edit", type="primary", use_container_width=True):
                     st.session_state.editing_note_id = note_id
                     st.rerun()
+
+    with action_col3:
+        # Rescan button - available for all statuses
+        if st.session_state.confirm_rescan_history == note_id:
+            st.warning("Re-OCR this note?")
+            conf_col1, conf_col2 = st.columns(2)
+            with conf_col1:
+                if st.button("Yes, Rescan", type="primary", use_container_width=True, key="confirm_rescan_yes"):
+                    reset_note_for_reprocessing(note_id)
+                    st.session_state.confirm_rescan_history = None
+                    st.session_state.editing_note_id = None
+                    st.success("Note queued for rescan! Go to Scan page to process.")
+                    st.rerun()
+            with conf_col2:
+                if st.button("Cancel", use_container_width=True, key="cancel_rescan_history"):
+                    st.session_state.confirm_rescan_history = None
+                    st.rerun()
+        else:
+            if st.button("🔄 Rescan", use_container_width=True):
+                st.session_state.confirm_rescan_history = note_id
+                st.rerun()
 
     st.divider()
 
