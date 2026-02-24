@@ -7,6 +7,10 @@ You are a coding agent assisting a non-coder. Resist the urge to over-engineer. 
 
 Always write plans to this project directory, eg C:\Users\alexn\Documents\Projects\supernote-converter\.claude\plans\[session_name].md
 
+ALWAYS update the version number when commiting changes
+
+You are operating in a powershell environment, so follow powershell conventions (eg semicolons instead of && in cli commands).
+
 ## Project Overview
 
 Supernote Converter is a Python Streamlit web application that converts handwritten Supernote `.note` files into searchable markdown for Obsidian. It uses local Ollama vision OCR (qwen3-vl:8b) as the primary extraction method with OpenAI gpt-4o as fallback.

@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')
 
 from app.services.scanner import scan_source_directory
 from app.services.processor import process_pending_notes
-from app.database import get_pending_notes, init_db, upsert_note, get_note_by_path
+from app.database import get_pending_notes, init_db, upsert_note, get_note_by_path, reset_note_for_reprocessing
 import app.styles as styles
 
 # Abort flag file (used to signal abort across Streamlit reruns)
@@ -88,7 +88,11 @@ if scan_btn:
         for note in discovered:
             existing = get_note_by_path(note["file_path"])
             note["selected"] = True  # Default all selected
-            note["status"] = "new" if existing is None else "exists"
+            if existing is None:
+                note["status"] = "new"
+            else:
+                note["status"] = existing["status"]
+                note["db_id"] = existing["id"]
 
         st.session_state.discovered_notes = discovered
 
@@ -177,26 +181,37 @@ if st.session_state.discovered_notes:
     # Process Selected button
     if selected_count > 0:
         if st.button(f"Process {selected_count} Selected Notes", type="primary", use_container_width=True):
-            # Insert only selected notes into database
+            # Insert or reset selected notes for processing
             inserted = 0
+            requeued = 0
             for note in st.session_state.discovered_notes:
                 if note["selected"]:
-                    upsert_note(
-                        file_path=note["file_path"],
-                        file_name=note["file_name"],
-                        file_modified_at=note["file_modified_at"],
-                        source_folder=note["source_folder"],
-                        output_folder=note["output_folder"],
-                        file_hash=note["file_hash"],
-                        file_size_bytes=note["file_size_bytes"],
-                    )
-                    inserted += 1
+                    if note["status"] == "new":
+                        upsert_note(
+                            file_path=note["file_path"],
+                            file_name=note["file_name"],
+                            file_modified_at=note["file_modified_at"],
+                            source_folder=note["source_folder"],
+                            output_folder=note["output_folder"],
+                            file_hash=note["file_hash"],
+                            file_size_bytes=note["file_size_bytes"],
+                        )
+                        inserted += 1
+                    elif note["status"] != "pending":
+                        # Already exists - reset for reprocessing
+                        reset_note_for_reprocessing(note["db_id"])
+                        requeued += 1
 
             # Clear discovered notes after inserting
             st.session_state.discovered_notes = []
             if "selection_df" in st.session_state:
                 del st.session_state.selection_df
-            st.success(f"Inserted {inserted} notes into queue. Processing will start below.")
+            parts = []
+            if inserted:
+                parts.append(f"{inserted} new")
+            if requeued:
+                parts.append(f"{requeued} requeued")
+            st.success(f"Added {' + '.join(parts)} notes to queue. Processing will start below.")
             st.rerun()
     else:
         st.warning("No notes selected. Use checkboxes above to select notes to process.")

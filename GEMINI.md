@@ -9,6 +9,10 @@ You are a coding agent assisting a non-coder. Resist the urge to over-engineer. 
 
 Always write plans to this project directory, eg C:\Users\alexn\Documents\Projects\supernote-converter\.gemini\plans\[session_name].md
 
+ALWAYS update the version number when commiting changes
+
+You are operating in a powershell environment, so follow powershell conventions (eg semicolons instead of && in cli commands).
+
 **Key Features:**
 *   **Scanning:** Detects `.note` files in a synchronized directory.
 *   **Conversion:** Converts Supernote proprietary format to PNG images using `supernotelib`.
