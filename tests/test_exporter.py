@@ -115,7 +115,7 @@ def test_export_uses_config_path_when_none(sample_note_path, tmp_path, monkeypat
         png_cache_path=str(png_cache),
     )
 
-    monkeypatch.setattr("app.services.exporter.get_settings", lambda: test_settings)
+    monkeypatch.setattr("app.services.exporter._get_effective_settings", lambda: test_settings)
 
     # Call without output_dir - should use config path
     pngs = export_note_to_png(sample_note_path)
@@ -177,7 +177,7 @@ def test_export_note_by_id_updates_page_count(test_db, tmp_path, monkeypatch):
         output_path=str(tmp_path / "output"),
         png_cache_path=str(png_cache),
     )
-    monkeypatch.setattr("app.services.exporter.get_settings", lambda: test_settings)
+    monkeypatch.setattr("app.services.exporter._get_effective_settings", lambda: test_settings)
 
     # Insert a note into the database
     note_id = insert_note(
@@ -217,7 +217,7 @@ def test_export_note_by_id_creates_subdirectory(test_db, tmp_path, monkeypatch):
         output_path=str(tmp_path / "output"),
         png_cache_path=str(png_cache),
     )
-    monkeypatch.setattr("app.services.exporter.get_settings", lambda: test_settings)
+    monkeypatch.setattr("app.services.exporter._get_effective_settings", lambda: test_settings)
 
     note_id = insert_note(
         file_path=note_file.as_posix(),
@@ -254,7 +254,7 @@ def test_export_all_fixtures(png_output_dir):
         pytest.skip("Fixtures directory not found")
 
     note_files = list(fixtures_dir.rglob("*.note"))
-    assert len(note_files) == 7, f"Expected 7 fixtures, found {len(note_files)}"
+    assert len(note_files) == 12, f"Expected 12 fixtures, found {len(note_files)}"
 
     for note_path in note_files:
         # Create subdirectory for each note to avoid collisions

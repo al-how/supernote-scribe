@@ -11,6 +11,7 @@ from app.database import close_connection, init_db, set_db_path
 def test_db(tmp_path):
     """Set up test database."""
     db_path = tmp_path / "test.db"
+    close_connection()  # Close any prior connection before switching DB path
     set_db_path(db_path)
     init_db()
     yield

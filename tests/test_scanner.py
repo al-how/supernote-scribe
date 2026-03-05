@@ -350,7 +350,7 @@ def test_scan_and_insert_respects_source_path_from_config(tmp_path, test_db, mon
         output_path=str(tmp_path / "output"),
     )
 
-    monkeypatch.setattr("app.services.scanner.get_settings", lambda: test_settings)
+    monkeypatch.setattr("app.services.scanner._get_effective_settings", lambda: test_settings)
 
     # Call without source_path parameter - should use config
     new, updated, skipped = scan_and_insert()
@@ -371,8 +371,8 @@ def test_scan_real_fixtures(test_db):
 
     new, updated, skipped = scan_and_insert(fixtures_path)
 
-    # Should find 7 notes (3 Daily Journal, 3 WORK, 1 Other)
-    assert new == 7
+    # Should find 12 notes (8 Daily Journal, 3 WORK, 1 Other)
+    assert new == 12
     assert updated == 0
     assert skipped == 0
 
@@ -400,4 +400,4 @@ def test_scan_real_fixtures(test_db):
     new2, updated2, skipped2 = scan_and_insert(fixtures_path)
     assert new2 == 0
     assert updated2 == 0
-    assert skipped2 == 7
+    assert skipped2 == 12
