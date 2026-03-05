@@ -7,6 +7,7 @@ services:
     restart: unless-stopped
     ports:
       - "8086:8501"
+      - "8001:8000"
     volumes:
       # Volume paths configured via .env file
       - ${HOST_SOURCE_PATH}:/data/source:ro

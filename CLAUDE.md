@@ -89,6 +89,7 @@ init_db()
 # Key functions:
 # Notes: insert_note, upsert_note, get_note_by_id, get_pending_notes, get_review_queue
 # Status: mark_note_processing, mark_note_for_review, mark_note_approved, mark_note_error
+# Reprocessing: reset_note_for_reprocessing (clears extractions, resets to pending)
 # Extractions: insert_extraction, get_extractions_for_note, get_aggregated_text
 # Settings: get_setting, set_setting
 # Activity: log_activity, get_recent_activity
@@ -106,6 +107,10 @@ init_db()
   - Other → `Journals/Other/`
 - **Line Break Processing:** Join lines not ending with `.!?:;`, preserve paragraphs and list items, keep short capitalized lines as headers.
 - **Dual Mode:** Web UI via Streamlit, headless CLI via `python -m app --process` for cron scheduling.
+
+## Versioning
+
+- Version in `app/__init__.py` (`__version__`), displayed on Home page and CLI `--version`
 
 ## Environment Variables
 

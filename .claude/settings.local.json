@@ -25,7 +25,8 @@
       "Bash(docker-compose:*)",
       "Bash(ssh:*)",
       "WebSearch",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(pytest:*)"
     ]
   }
 }
