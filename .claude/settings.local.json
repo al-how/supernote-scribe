@@ -26,7 +26,8 @@
       "Bash(ssh:*)",
       "WebSearch",
       "Bash(git push:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(curl:*)"
     ]
   }
 }
