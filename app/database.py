@@ -485,6 +485,13 @@ def get_notes_history(
         return _rows_to_dicts(cursor.fetchall())
 
 
+def get_all_notes() -> list[dict]:
+    """Get all notes regardless of status, ordered by file_modified_at desc."""
+    with get_connection() as conn:
+        cursor = conn.execute("SELECT * FROM notes ORDER BY file_modified_at DESC")
+        return _rows_to_dicts(cursor.fetchall())
+
+
 def count_notes_by_status() -> dict[str, int]:
     """Return dict like {'pending': 5, 'review': 3, ...} for Dashboard."""
     with get_connection() as conn:

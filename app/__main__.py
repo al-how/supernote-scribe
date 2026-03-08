@@ -4,6 +4,8 @@ Usage:
     python -m app --process                    # Scan + process all pending
     python -m app --process --cutoff 2026-01-01  # With date filter
     python -m app --scan-only                  # Just scan, don't process
+    python -m app --rescan                     # Reset all notes and reprocess
+    python -m app --rescan --cutoff 2026-01-01 # Rescan notes on/after date
     python -m app --prefer-openai              # Use OpenAI as primary OCR
     python -m app -v                           # Verbose logging
 """
@@ -12,9 +14,11 @@ import argparse
 import logging
 import sys
 from datetime import datetime
+from pathlib import Path
 
-from app.services.processor import run_batch_process
-from app.services.scanner import scan_and_insert
+from app.services.processor import run_batch_process, process_pending_notes
+from app.services.scanner import scan_and_insert, get_note_date
+from app.database import init_db, get_all_notes, reset_note_for_reprocessing
 from app.config import init_app
 from app import __version__
 
@@ -50,6 +54,51 @@ def parse_cutoff_date(date_str: str) -> datetime:
         )
 
 
+def rescan_notes(cutoff_date, prefer_openai: bool = False) -> int:
+    """Reset notes to pending (filtered by cutoff) and reprocess them."""
+    logger = logging.getLogger(__name__)
+
+    init_app()
+    init_db()
+
+    all_notes = get_all_notes()
+
+    if cutoff_date is not None:
+        notes_to_reset = [
+            n for n in all_notes
+            if get_note_date(Path(n["file_path"])) >= cutoff_date
+        ]
+    else:
+        notes_to_reset = all_notes
+
+    if not notes_to_reset:
+        print("No notes matched the given cutoff. Nothing to rescan.")
+        return 0
+
+    logger.info(f"Resetting {len(notes_to_reset)} note(s) to pending...")
+    for note in notes_to_reset:
+        reset_note_for_reprocessing(note["id"])
+
+    print(f"\n=== Rescan: Reset {len(notes_to_reset)} note(s) ===\n")
+
+    result = process_pending_notes(prefer_openai=prefer_openai)
+
+    print("=== Processing Results ===")
+    print(f"Processed: {result.processed}")
+    print(f"Auto-approved: {result.auto_approved}")
+    print(f"Review queue: {result.review_queued}")
+    print(f"Errors: {result.errors}")
+    print()
+
+    if result.error_details:
+        print("=== Errors ===")
+        for note_id, error_msg in result.error_details:
+            print(f"Note {note_id}: {error_msg}")
+        print()
+
+    return 1 if result.errors > 0 else 0
+
+
 def main() -> int:
     """
     Main CLI entry point.
@@ -72,6 +121,11 @@ def main() -> int:
         "--scan-only",
         action="store_true",
         help="Only scan for new notes, don't process",
+    )
+    parser.add_argument(
+        "--rescan",
+        action="store_true",
+        help="Reset notes to pending and reprocess (use --cutoff to limit by date)",
     )
 
     # Options
@@ -116,6 +170,11 @@ def main() -> int:
             return 1
 
     try:
+        # Handle rescan mode
+        if args.rescan:
+            logger.info("Running rescan mode")
+            return rescan_notes(cutoff_date, args.prefer_openai)
+
         # Handle scan-only mode
         if args.scan_only:
             logger.info("Running scan-only mode")
