@@ -101,16 +101,17 @@ You can also run the application using Docker Compose:
 The webhook server is already running on your Unraid box at port 8002:
 
 Method	URL	Purpose
-POST	http://<server-ip>:8002/process	Trigger a conversion run
-GET	http://<unraid-ip>:8002/status	Check pending queue
-GET	http://<unraid-ip>:8002/health	Health check
-n8n Workflow Setup
+POST	http://server-ip:8002/process	Trigger a conversion run
+GET	http://server-ip:8002/status	Check pending queue
+GET	http://server-ip:8002/health	Health check
+
+## n8n Workflow Setup
 The simplest flow is a single HTTP Request node:
 
 Add a trigger — whatever you want to kick it off (Schedule, webhook from another service, manual, etc.)
 Add an HTTP Request node:
 Method: POST
-URL: http://<your-unraid-ip>:8002/process
+URL: http://server-ip:8002/process
 No body needed
 The endpoint returns immediately with {"status": "accepted", "message": "Processing N note(s) in background"} — processing continues in the background on Unraid.
 
@@ -118,7 +119,7 @@ Optional: Check Results
 If you want to verify results after a delay, add a Wait node (e.g. 2 minutes) followed by another HTTP Request node:
 
 Method: GET
-URL: http://<your-unraid-ip>:8002/status
+URL: http://server-ip:8002/status
 This returns {"pending_count": 0, "recent_activity": [...]} which you can use to send a notification.
 
 The /process endpoint automatically looks back 7 days for notes, so no parameters needed.
