@@ -108,6 +108,24 @@ init_db()
 - **Line Break Processing:** Join lines not ending with `.!?:;`, preserve paragraphs and list items, keep short capitalized lines as headers.
 - **Dual Mode:** Web UI via Streamlit, headless CLI via `python -m app --process` for cron scheduling.
 
+## Deployment Details
+- **Image:** `ghcr.io/al-how/supernote-scribe:latest` (built via GitHub Actions)
+- **Compose on Unraid:** `/boot/config/plugins/compose.manager/projects/supernote-converter/docker-compose.yml`
+- **DB on Unraid:** `/mnt/user/appdata/supernote-converter/supernote.db`
+- **Redeploy:** `ssh root@192.168.1.138` then `docker pull ghcr.io/al-how/supernote-scribe:latest && docker stop supernote-scribe && docker rm supernote-scribe && cd /boot/config/plugins/compose.manager/projects/supernote-converter && docker compose up -d`
+- **Ports:** 8086→8501 (Streamlit), 8002→8000 (webhook)
+- The local `docker-compose.yml` in the repo is NOT what Unraid uses — Unraid has its own copy at the path above
+
+## Webhook Server (`app/webhook.py`)
+- FastAPI server on port 8000, started alongside Streamlit via `start.sh`
+- `POST /process` — scans with 7-day lookback, processes pending notes in background
+- `GET /status` — pending count + recent activity
+- `GET /health` — simple healthcheck
+
+## Database Notes
+- Note statuses: pending, processing, review, approved, error, rejected, skipped
+- 'skipped' was used to clear a historical backlog of 325 notes that shouldn't be processed
+
 ## Versioning
 
 - Version in `app/__init__.py` (`__version__`), displayed on Home page and CLI `--version`
