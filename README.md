@@ -101,7 +101,7 @@ You can also run the application using Docker Compose:
 The webhook server is already running on your Unraid box at port 8002:
 
 Method	URL	Purpose
-POST	http://<unraid-ip>:8002/process	Trigger a conversion run
+POST	http://<server-ip>:8002/process	Trigger a conversion run
 GET	http://<unraid-ip>:8002/status	Check pending queue
 GET	http://<unraid-ip>:8002/health	Health check
 n8n Workflow Setup
