@@ -32,6 +32,17 @@ def get_status_color(status: str) -> str:
     }
     return colors.get(status, "#6b7280")
 
+def style_status_column(df, column: str = "status"):
+    """Apply status colors to a pandas dataframe status column."""
+    def color_status_col(val):
+        color = get_status_color(val)
+        return f"background-color: {color}; color: white"
+
+    styler = df.style
+    if hasattr(styler, "map"):
+        return styler.map(color_status_col, subset=[column])
+    return styler.applymap(color_status_col, subset=[column])
+
 def status_badge_html(status: str) -> str:
     """Return HTML string for status badge (for Markdown/HTML displays)."""
     color = get_status_color(status)

@@ -74,15 +74,7 @@ display_cols = ["id", "file_modified_at", "file_name", "source_folder", "status"
 df_display = df[display_cols].copy()
 df_display["file_modified_at"] = pd.to_datetime(df_display["file_modified_at"]).dt.strftime('%Y-%m-%d %H:%M')
 
-# Apply styling to status column
-def color_status_col(val):
-    color = styles.get_status_color(val)
-    return f'background-color: {color}; color: white'
-
-# Use applymap (pandas < 2.1) or map (pandas >= 2.1)
-# We'll use applymap which is generally safe for now, or try/except if needed.
-# But simplest is just styling the subset.
-styled_df = df_display.style.applymap(color_status_col, subset=["status"])
+styled_df = styles.style_status_column(df_display)
 
 # ============================================================================
 # List View
@@ -249,4 +241,3 @@ if event.selection.rows:
                     st.error(f"Could not read file: {e}")
             else:
                 st.warning("Output file not found (moved or deleted).")
-
