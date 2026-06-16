@@ -16,6 +16,7 @@ from app.services.markdown import (
 from app.services.ocr import (
     OCRError,
     extract_text_from_image,
+    ocr_with_llama_server,
     ocr_with_ollama,
     ocr_with_openai,
 )
@@ -50,6 +51,7 @@ __all__ = [
     # OCR
     "OCRError",
     "extract_text_from_image",
+    "ocr_with_llama_server",
     "ocr_with_ollama",
     "ocr_with_openai",
     # Processor

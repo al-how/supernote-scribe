@@ -27,7 +27,17 @@
       "WebSearch",
       "Bash(git push:*)",
       "Bash(pytest:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(Move-Item *)",
+      "mcp__n8n-mcp__n8n_executions",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\alexn\\\\Documents\\\\Projects\\\\supernote-converter\\\\node_modules\" -Filter \"n8n-mcp\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object FullName)",
+      "Bash(npx n8n-mcp *)",
+      "Bash(npm pack *)",
+      "Bash(npx --yes n8n-mcp@latest)",
+      "Bash(npx --yes n8n-mcp pack)",
+      "Bash(npm show *)",
+      "Bash(npm install *)"
     ]
   }
 }

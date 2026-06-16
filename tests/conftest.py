@@ -57,6 +57,9 @@ def sample_png_path():
 def mock_settings():
     """Mock Settings object for OCR testing."""
     return Settings(
+        ocr_provider="llama_server",
+        llama_server_url="http://localhost:8080",
+        llama_server_model="llama-server",
         ollama_url="http://localhost:11434",
         ollama_model="qwen3-vl:8b",
         openai_api_key="sk-test-key",
@@ -72,6 +75,24 @@ def ollama_success_response():
         "model": "qwen3-vl:8b",
         "response": "This is extracted text from the handwritten note.",
         "done": True,
+    }
+
+
+@pytest.fixture
+def llama_server_success_response():
+    """Mock successful llama-server chat completions response."""
+    return {
+        "id": "chatcmpl-llama",
+        "object": "chat.completion",
+        "choices": [
+            {
+                "message": {
+                    "role": "assistant",
+                    "content": "This is extracted text from the handwritten note.",
+                },
+                "finish_reason": "stop",
+            }
+        ],
     }
 
 

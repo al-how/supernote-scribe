@@ -1,6 +1,6 @@
 # Supernote Converter
 
-A Python Streamlit application designed to automate the conversion of handwritten Supernote `.note` files to digital text using local vision AI (Ollama) and export them to an Obsidian vault.
+A Python Streamlit application designed to automate the conversion of handwritten Supernote `.note` files to digital text using local vision AI and export them to an Obsidian vault.
 
 Test Push
 
@@ -8,7 +8,7 @@ Test Push
 
 *   **Scanning:** Automatically detects `.note` files in a synchronized directory.
 *   **Conversion:** Converts Supernote proprietary format to PNG images.
-*   **OCR:** Extracts text from images using Ollama (local Qwen vision models) with OpenAI fallback options.
+*   **OCR:** Extracts text from images using llama-server by default, with Ollama as an optional local provider and OpenAI fallback options.
 *   **Review UI:** A Streamlit dashboard to review, edit, and approve extracted text alongside the original image.
 *   **Export:** Generates Markdown files with frontmatter suitable for Obsidian.
 *   **Automation:** Supports headless CLI execution for background tasks or cron jobs.
@@ -16,8 +16,8 @@ Test Push
 ## Prerequisites
 
 *   **Python 3.10+** installed on your system.
-*   **Ollama** running locally (or accessible via network) with a vision model pulled (e.g., `qwen2.5-vl`).
-    *   Example: `ollama pull qwen2.5-vl`
+*   **llama-server** running locally or accessible via network with a multimodal vision model.
+*   Optional: **Ollama** running locally or accessible via network with a vision model pulled (e.g., `qwen3-vl:8b`) if you want to use Ollama instead.
 
 ## Windows Development Setup
 
@@ -55,7 +55,7 @@ pip install -r requirements.txt
 2.  Open `.env` in a text editor and configure your paths:
     *   `SUPERNOTE_PATH`: Path to your synced Supernote files.
     *   `OBSIDIAN_VAULT_PATH`: Path where you want the markdown files exported.
-    *   Configure OCR settings (Ollama URL, model name, etc.).
+    *   Configure OCR settings (`OCR_PROVIDER`, llama-server URL/model, optional Ollama URL/model).
 
 ### 4. Run the Streamlit Application
 

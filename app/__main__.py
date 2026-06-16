@@ -138,7 +138,7 @@ def main() -> int:
     parser.add_argument(
         "--prefer-openai",
         action="store_true",
-        help="Use OpenAI as primary OCR instead of Ollama",
+        help="Use OpenAI as primary OCR instead of the configured local provider",
     )
     parser.add_argument(
         "-v",

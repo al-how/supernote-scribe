@@ -50,6 +50,9 @@ class SettingsManager:
 
         # Start with config defaults
         result = {
+            'ocr_provider': config.ocr_provider,
+            'llama_server_url': config.llama_server_url,
+            'llama_server_model': config.llama_server_model,
             'ollama_url': config.ollama_url,
             'ollama_model': config.ollama_model,
             'openai_api_key': config.openai_api_key or '',

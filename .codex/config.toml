@@ -1,0 +1,11 @@
+[mcp_servers.n8n-mcp]
+command = "npx"
+args = ["n8n-mcp"]
+
+[mcp_servers.n8n-mcp.env]
+MCP_MODE = "stdio"
+LOG_LEVEL = "error"
+DISABLE_CONSOLE_OUTPUT = "true"
+N8N_API_URL = "http://192.168.1.138:5678"
+N8N_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3NTc5ZjcyZC1kOWI1LTRiODktOGNkYi1mZWQ0OTVjZDQ1OWMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwianRpIjoiMTNkYzY2ZDctNmJlOC00M2Q4LWJhM2YtZWFlZGQyNTc4NDg5IiwiaWF0IjoxNzc3MjkwMjQwfQ.cK0-c5HOIHE2M_SLopdink5erWTN8MXovfFIRQHnh4o"
+WEBHOOK_SECURITY_MODE = "permissive"

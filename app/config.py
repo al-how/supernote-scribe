@@ -6,6 +6,7 @@ Loads settings from environment variables and .env file.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,7 +39,23 @@ class Settings(BaseSettings):
         description="Path to PNG cache directory",
     )
 
-    # Ollama (primary OCR)
+    # Local OCR provider
+    ocr_provider: Literal["llama_server", "ollama"] = Field(
+        default="llama_server",
+        description="Local OCR provider to use before OpenAI fallback",
+    )
+
+    # llama-server (default local OCR)
+    llama_server_url: str = Field(
+        default="http://192.168.1.138:8080",
+        description="llama-server URL",
+    )
+    llama_server_model: str = Field(
+        default="llama-server",
+        description="llama-server vision model for OCR",
+    )
+
+    # Ollama (optional local OCR)
     ollama_url: str = Field(
         default="http://192.168.1.138:11434",
         description="Ollama server URL",
