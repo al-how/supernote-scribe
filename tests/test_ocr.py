@@ -10,9 +10,95 @@ from app.config import Settings
 from app.services.ocr import (
     OCRError,
     extract_text_from_image,
+    ocr_with_llama_server,
     ocr_with_ollama,
     ocr_with_openai,
 )
+
+
+class TestLlamaServerOCR:
+    """Tests for llama-server vision OCR."""
+
+    @respx.mock
+    def test_ocr_llama_server_success(
+        self, sample_png_path, mock_settings, llama_server_success_response
+    ):
+        """Test successful llama-server OCR extraction."""
+        respx.post(f"{mock_settings.llama_server_url}/v1/chat/completions").mock(
+            return_value=httpx.Response(200, json=llama_server_success_response)
+        )
+
+        result = ocr_with_llama_server(sample_png_path, mock_settings)
+
+        assert result == "This is extracted text from the handwritten note."
+
+    @respx.mock
+    def test_ocr_llama_server_sends_openai_style_image_request(
+        self, sample_png_path, mock_settings, llama_server_success_response
+    ):
+        """Verify llama-server receives an OpenAI-compatible multimodal request."""
+        route = respx.post(
+            f"{mock_settings.llama_server_url}/v1/chat/completions"
+        ).mock(return_value=httpx.Response(200, json=llama_server_success_response))
+
+        ocr_with_llama_server(sample_png_path, mock_settings)
+
+        request = route.calls[0].request
+        json_data = request.content.decode("utf-8")
+        assert mock_settings.llama_server_model in json_data
+        assert "image_url" in json_data
+        assert "data:image/png;base64," in json_data
+
+    @respx.mock
+    def test_ocr_llama_server_sends_correct_prompt(
+        self, sample_png_path, mock_settings, llama_server_success_response
+    ):
+        """Verify prompt instructs llama-server to extract handwritten text."""
+        route = respx.post(
+            f"{mock_settings.llama_server_url}/v1/chat/completions"
+        ).mock(return_value=httpx.Response(200, json=llama_server_success_response))
+
+        ocr_with_llama_server(sample_png_path, mock_settings)
+
+        request = route.calls[0].request
+        json_data = request.content.decode("utf-8").lower()
+        assert "handwritten" in json_data
+        assert "extract" in json_data
+
+    @respx.mock
+    def test_ocr_llama_server_handles_timeout(self, sample_png_path, mock_settings):
+        """Test llama-server timeout returns None."""
+        respx.post(f"{mock_settings.llama_server_url}/v1/chat/completions").mock(
+            side_effect=httpx.TimeoutException("Request timed out")
+        )
+
+        result = ocr_with_llama_server(sample_png_path, mock_settings)
+
+        assert result is None
+
+    @respx.mock
+    def test_ocr_llama_server_handles_http_error(self, sample_png_path, mock_settings):
+        """Test llama-server HTTP error returns None."""
+        respx.post(f"{mock_settings.llama_server_url}/v1/chat/completions").mock(
+            return_value=httpx.Response(500, json={"error": "Internal server error"})
+        )
+
+        result = ocr_with_llama_server(sample_png_path, mock_settings)
+
+        assert result is None
+
+    @respx.mock
+    def test_ocr_llama_server_handles_malformed_response(
+        self, sample_png_path, mock_settings
+    ):
+        """Test malformed llama-server response returns None."""
+        respx.post(f"{mock_settings.llama_server_url}/v1/chat/completions").mock(
+            return_value=httpx.Response(200, json={"choices": []})
+        )
+
+        result = ocr_with_llama_server(sample_png_path, mock_settings)
+
+        assert result is None
 
 
 class TestOllamaOCR:
@@ -226,10 +312,28 @@ class TestExtractTextFromImage:
     """Tests for high-level OCR orchestration."""
 
     @respx.mock
-    def test_uses_ollama_by_default(
+    def test_uses_llama_server_by_default(
+        self, sample_png_path, mock_settings, llama_server_success_response
+    ):
+        """Test llama-server is used as primary by default."""
+        llama_route = respx.post(
+            f"{mock_settings.llama_server_url}/v1/chat/completions"
+        ).mock(
+            return_value=httpx.Response(200, json=llama_server_success_response)
+        )
+
+        text, provider = extract_text_from_image(sample_png_path, mock_settings)
+
+        assert text == "This is extracted text from the handwritten note."
+        assert provider == "llama_server"
+        assert llama_route.called
+
+    @respx.mock
+    def test_uses_ollama_when_selected(
         self, sample_png_path, mock_settings, ollama_success_response
     ):
-        """Test Ollama is used as primary by default."""
+        """Test Ollama is used as primary when selected."""
+        mock_settings.ocr_provider = "ollama"
         ollama_route = respx.post(f"{mock_settings.ollama_url}/api/generate").mock(
             return_value=httpx.Response(200, json=ollama_success_response)
         )
@@ -258,11 +362,13 @@ class TestExtractTextFromImage:
         assert openai_route.called
 
     @respx.mock
-    def test_fallback_to_openai_when_ollama_fails(
+    def test_fallback_to_openai_when_llama_server_fails(
         self, sample_png_path, mock_settings, openai_success_response
     ):
-        """Test fallback to OpenAI when Ollama times out."""
-        ollama_route = respx.post(f"{mock_settings.ollama_url}/api/generate").mock(
+        """Test fallback to OpenAI when llama-server times out."""
+        llama_route = respx.post(
+            f"{mock_settings.llama_server_url}/v1/chat/completions"
+        ).mock(
             side_effect=httpx.TimeoutException("Timeout")
         )
 
@@ -274,20 +380,22 @@ class TestExtractTextFromImage:
 
         assert text == "This is extracted text from the handwritten note."
         assert provider == "openai"
-        assert ollama_route.called
+        assert llama_route.called
         assert openai_route.called
 
     @respx.mock
-    def test_fallback_to_ollama_when_openai_fails(
-        self, sample_png_path, mock_settings, ollama_success_response
+    def test_fallback_to_selected_local_provider_when_openai_fails(
+        self, sample_png_path, mock_settings, llama_server_success_response
     ):
-        """Test fallback to Ollama when OpenAI is primary and fails."""
+        """Test fallback to selected local provider when OpenAI is primary and fails."""
         openai_route = respx.post("https://api.openai.com/v1/chat/completions").mock(
             side_effect=httpx.TimeoutException("Timeout")
         )
 
-        ollama_route = respx.post(f"{mock_settings.ollama_url}/api/generate").mock(
-            return_value=httpx.Response(200, json=ollama_success_response)
+        llama_route = respx.post(
+            f"{mock_settings.llama_server_url}/v1/chat/completions"
+        ).mock(
+            return_value=httpx.Response(200, json=llama_server_success_response)
         )
 
         text, provider = extract_text_from_image(
@@ -295,14 +403,14 @@ class TestExtractTextFromImage:
         )
 
         assert text == "This is extracted text from the handwritten note."
-        assert provider == "ollama"
+        assert provider == "llama_server"
         assert openai_route.called
-        assert ollama_route.called
+        assert llama_route.called
 
     @respx.mock
     def test_raises_exception_when_both_fail(self, sample_png_path, mock_settings):
         """Test exception raised when both OCR providers fail."""
-        respx.post(f"{mock_settings.ollama_url}/api/generate").mock(
+        respx.post(f"{mock_settings.llama_server_url}/v1/chat/completions").mock(
             side_effect=httpx.TimeoutException("Timeout")
         )
         respx.post("https://api.openai.com/v1/chat/completions").mock(
@@ -323,7 +431,7 @@ class TestExtractTextFromImage:
         """Test no OpenAI fallback attempt when API key not configured."""
         mock_settings.openai_api_key = None
 
-        respx.post(f"{mock_settings.ollama_url}/api/generate").mock(
+        respx.post(f"{mock_settings.llama_server_url}/v1/chat/completions").mock(
             side_effect=httpx.TimeoutException("Timeout")
         )
 
@@ -337,6 +445,7 @@ class TestExtractTextFromImage:
     @respx.mock
     def test_returns_empty_string_from_ollama(self, sample_png_path, mock_settings):
         """Test Ollama returning empty text is valid."""
+        mock_settings.ocr_provider = "ollama"
         respx.post(f"{mock_settings.ollama_url}/api/generate").mock(
             return_value=httpx.Response(200, json={"response": "", "done": True})
         )

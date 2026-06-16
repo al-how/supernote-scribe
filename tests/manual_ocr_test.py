@@ -4,13 +4,56 @@ Usage:
     python tests/manual_ocr_test.py
 
 This script tests the OCR service with a real PNG file exported from a .note file.
-It will attempt to use Ollama first, then fall back to OpenAI if configured.
+It will attempt to use the configured local OCR provider first, then fall back to
+OpenAI if configured.
 """
 from pathlib import Path
 
 from app.config import get_settings
 from app.services.exporter import export_note_to_png
-from app.services.ocr import extract_text_from_image, ocr_with_ollama, ocr_with_openai
+from app.services.ocr import (
+    extract_text_from_image,
+    ocr_with_llama_server,
+    ocr_with_ollama,
+    ocr_with_openai,
+)
+
+
+def test_llama_server_ocr():
+    """Test llama-server OCR with real PNG."""
+    settings = get_settings()
+    png_path = Path("data/png_cache/20251222_Note to Maggie_0.png")
+
+    print("=" * 60)
+    print("LLAMA-SERVER OCR TEST")
+    print("=" * 60)
+    print("Settings:")
+    print(f"  llama-server URL: {settings.llama_server_url}")
+    print(f"  llama-server Model: {settings.llama_server_model}")
+    print(f"  Timeout: {settings.ocr_timeout}s")
+    print(f"  PNG: {png_path}")
+    print()
+
+    if not png_path.exists():
+        print("ERROR: PNG file not found. Run exporter first.")
+        return
+
+    print("Testing llama-server OCR...")
+    result = ocr_with_llama_server(png_path, settings)
+
+    if result is not None:
+        print(f"SUCCESS: llama-server OCR extracted {len(result)} characters")
+        print()
+        print("Extracted text preview:")
+        print("-" * 60)
+        print(result[:500])
+        if len(result) > 500:
+            print("...")
+        print("-" * 60)
+    else:
+        print("FAILED: llama-server returned None")
+        print("This is expected if llama-server is not running or not accessible.")
+    print()
 
 
 def test_ollama_ocr():
@@ -21,7 +64,7 @@ def test_ollama_ocr():
     print("=" * 60)
     print("OLLAMA OCR TEST")
     print("=" * 60)
-    print(f"Settings:")
+    print("Settings:")
     print(f"  Ollama URL: {settings.ollama_url}")
     print(f"  Ollama Model: {settings.ollama_model}")
     print(f"  Timeout: {settings.ocr_timeout}s")
@@ -58,7 +101,7 @@ def test_openai_ocr():
     print("=" * 60)
     print("OPENAI OCR TEST")
     print("=" * 60)
-    print(f"Settings:")
+    print("Settings:")
     print(f"  OpenAI Model: {settings.openai_model}")
     print(f"  API Key: {'***' + settings.openai_api_key[-4:] if settings.openai_api_key else 'Not configured'}")
     print(f"  Timeout: {settings.ocr_timeout}s")
@@ -99,6 +142,7 @@ def test_ocr_with_fallback():
     print("=" * 60)
     print("OCR WITH FALLBACK TEST")
     print("=" * 60)
+    print(f"Configured local provider: {settings.ocr_provider}")
     print(f"PNG: {png_path}")
     print()
 
@@ -139,6 +183,7 @@ if __name__ == "__main__":
         print()
 
     # Run tests
+    test_llama_server_ocr()
     test_ollama_ocr()
     test_openai_ocr()
     test_ocr_with_fallback()

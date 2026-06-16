@@ -107,6 +107,9 @@ with st.expander("ℹ️ System Information"):
     **Configuration:**
     - Source Path: `{config['source_path']}`
     - Output Path: `{config['output_path']}`
+    - OCR Provider: `{config['ocr_provider']}`
+    - llama-server URL: `{config['llama_server_url']}`
+    - llama-server Model: `{config['llama_server_model']}`
     - Ollama URL: `{config['ollama_url']}`
     - Ollama Model: `{config['ollama_model']}`
     - Auto-Approve Threshold: {config['auto_approve_threshold']} chars
