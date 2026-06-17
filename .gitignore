@@ -45,11 +45,14 @@ data/
 .abort_processing
 png_cache/
 .streamlit/
+!.streamlit/
+!.streamlit/config.toml
 
 # OS
 .DS_Store
 Thumbs.db
 
 # Tests
-tests/
+tests/*
+!tests/test_review_helpers.py
 docs/notes-to-self/

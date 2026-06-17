@@ -72,7 +72,7 @@ df = pd.DataFrame(notes)
 # Select columns to display
 display_cols = ["id", "file_modified_at", "file_name", "source_folder", "status", "output_path"]
 df_display = df[display_cols].copy()
-df_display["file_modified_at"] = pd.to_datetime(df_display["file_modified_at"]).dt.strftime('%Y-%m-%d %H:%M')
+df_display["file_modified_at"] = styles.format_datetime_series(df_display["file_modified_at"])
 
 styled_df = styles.style_status_column(df_display)
 

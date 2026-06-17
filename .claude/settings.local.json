@@ -39,5 +39,8 @@
       "Bash(npm show *)",
       "Bash(npm install *)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "n8n-mcp"
+  ]
 }
