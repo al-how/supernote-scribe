@@ -20,7 +20,7 @@ import json
 import sqlite3
 import threading
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Callable, Generator
 
@@ -193,9 +193,22 @@ def _migration_001_initial(conn: sqlite3.Connection) -> None:
     """)
 
 
+def _migration_002_processing_lock(conn: sqlite3.Connection) -> None:
+    """Processing lock table for cross-process worker coordination."""
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS processing_lock (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            owner TEXT NOT NULL,
+            locked_at TEXT NOT NULL,
+            heartbeat_at TEXT NOT NULL
+        );
+    """)
+
+
 # Migration registry: version -> (description, function)
 MIGRATIONS: dict[int, tuple[str, Callable[[sqlite3.Connection], None]]] = {
     1: ("Initial schema", _migration_001_initial),
+    2: ("Processing lock", _migration_002_processing_lock),
 }
 
 
@@ -364,6 +377,8 @@ def upsert_note(
 
         if file_changed:
             # File changed - update and reset to pending
+            now = _now()
+            conn.execute("DELETE FROM extractions WHERE note_id = ?", (note_id,))
             update_fields = [
                 "file_name = ?",
                 "file_modified_at = ?",
@@ -373,6 +388,9 @@ def upsert_note(
                 "file_size_bytes = ?",
                 "status = 'pending'",
                 "error_message = NULL",
+                "processed_at = NULL",
+                "approved_at = NULL",
+                "output_path = NULL",
                 "updated_at = ?",
             ]
             params = [
@@ -382,7 +400,7 @@ def upsert_note(
                 output_folder,
                 file_hash,
                 file_size_bytes,
-                _now(),
+                now,
                 note_id,
             ]
 
@@ -619,6 +637,131 @@ def reset_note_for_reprocessing(note_id: int) -> None:
             """,
             (_now(), note_id),
         )
+
+
+# =============================================================================
+# Processing Lock
+# =============================================================================
+
+
+def _parse_timestamp(value: str | None) -> datetime | None:
+    """Parse an ISO timestamp from SQLite."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+@contextmanager
+def _lock_connection() -> Generator[sqlite3.Connection, None, None]:
+    """Open a short-lived connection for explicit lock transactions."""
+    db_path = get_db_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(str(db_path), timeout=30.0, isolation_level=None)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def acquire_processing_lock(owner: str, stale_minutes: int) -> str:
+    """Acquire the processing lock for owner.
+
+    Returns "acquired", "already_running", or "stale_stolen".
+    """
+    now = _now()
+    cutoff = datetime.now() - timedelta(minutes=stale_minutes)
+
+    with _lock_connection() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = conn.execute(
+                "SELECT * FROM processing_lock WHERE id = 1"
+            ).fetchone()
+
+            if row is None:
+                conn.execute(
+                    """
+                    INSERT INTO processing_lock (id, owner, locked_at, heartbeat_at)
+                    VALUES (1, ?, ?, ?)
+                    """,
+                    (owner, now, now),
+                )
+                conn.commit()
+                return "acquired"
+
+            last_seen = _parse_timestamp(row["heartbeat_at"]) or _parse_timestamp(
+                row["locked_at"]
+            )
+            if last_seen is not None and last_seen < cutoff:
+                conn.execute(
+                    """
+                    UPDATE processing_lock
+                    SET owner = ?, locked_at = ?, heartbeat_at = ?
+                    WHERE id = 1
+                    """,
+                    (owner, now, now),
+                )
+                conn.commit()
+                return "stale_stolen"
+
+            conn.commit()
+            return "already_running"
+        except Exception:
+            conn.rollback()
+            raise
+
+
+def release_processing_lock(owner: str) -> bool:
+    """Release the processing lock if it is owned by owner."""
+    with get_connection() as conn:
+        cursor = conn.execute(
+            "DELETE FROM processing_lock WHERE id = 1 AND owner = ?",
+            (owner,),
+        )
+        return cursor.rowcount > 0
+
+
+def heartbeat_processing_lock(owner: str) -> bool:
+    """Update heartbeat timestamp for the lock owner."""
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE processing_lock
+            SET heartbeat_at = ?
+            WHERE id = 1 AND owner = ?
+            """,
+            (_now(), owner),
+        )
+        return cursor.rowcount > 0
+
+
+def get_processing_lock() -> dict | None:
+    """Return the current processing lock row, if one exists."""
+    with get_connection() as conn:
+        cursor = conn.execute("SELECT * FROM processing_lock WHERE id = 1")
+        return _row_to_dict(cursor.fetchone())
+
+
+def reset_stale_processing_notes(stale_minutes: int) -> int:
+    """Reset old notes left in processing state back to pending."""
+    cutoff = (datetime.now() - timedelta(minutes=stale_minutes)).isoformat()
+    with get_connection() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE notes
+            SET status = 'pending', error_message = NULL, updated_at = ?
+            WHERE status = 'processing' AND updated_at < ?
+            """,
+            (_now(), cutoff),
+        )
+        return cursor.rowcount
 
 
 # =============================================================================

@@ -117,7 +117,7 @@ with col2:
     st.markdown("**OpenAI (Fallback)**")
     openai_key = st.text_input(
         "API Key",
-        value=settings["openai_api_key"],
+        value=settings["openai_api_key"] or "",
         type="password",
         help="Your OpenAI API key (optional, used as fallback)",
     )
@@ -168,13 +168,13 @@ st.subheader("Paths")
 
 source_path = st.text_input(
     "Source Path (.note files)",
-    value=settings["source_path"],
+    value=str(settings["source_path"]),
     help="Directory containing your Supernote .note files",
 )
 
 output_path = st.text_input(
     "Output Path (Journals)",
-    value=settings["output_path"],
+    value=str(settings["output_path"]),
     help="Directory where markdown files will be saved (Journals folder)",
 )
 
@@ -202,18 +202,89 @@ with col2:
 st.divider()
 st.subheader("Automated Processing")
 
-schedule_enabled = st.checkbox(
-    "Enable Scheduled Processing",
-    value=settings["schedule_enabled"],
-    help="When enabled, the headless processor will run when triggered by Unraid cron",
-)
+col1, col2 = st.columns(2)
+
+with col1:
+    watch_enabled = st.checkbox(
+        "Enable File Watcher",
+        value=settings["watch_enabled"],
+        help="Automatically watch for new or changed .note files",
+    )
+    watch_stable_seconds = st.number_input(
+        "Watcher Stable Time (seconds)",
+        min_value=1,
+        value=settings["watch_stable_seconds"],
+        help="Wait this long after a file stops changing before processing",
+    )
+    watch_poll_seconds = st.number_input(
+        "Watcher Poll Interval (seconds)",
+        min_value=1,
+        value=settings["watch_poll_seconds"],
+        help="How often the watcher checks for file changes",
+    )
+
+with col2:
+    schedule_enabled = st.checkbox(
+        "Enable Scheduled Processing",
+        value=settings["schedule_enabled"],
+        help="When enabled, the worker scheduler can run periodic scans",
+    )
+    schedule_cron = st.text_input(
+        "Schedule Cron",
+        value=settings["schedule_cron"],
+        help="Cron expression for the worker scheduler, default is 3am daily",
+    )
+    lock_stale_minutes = st.number_input(
+        "Stale Lock Minutes",
+        min_value=1,
+        value=settings["lock_stale_minutes"],
+        help="When a processing lock is this old, the worker may recover it",
+    )
 
 st.info(
-    "**Note:** The actual schedule timing is controlled by Unraid cron "
-    "(e.g., `docker exec supernote-converter python -m app --process`). "
-    "This toggle only enables/disables whether the processor runs when triggered. "
-    "See docs/plan.md for setup instructions."
+    "**Restart required:** Watcher and scheduler settings are loaded when the "
+    "worker starts. After changing watcher or scheduler values, restart the "
+    "worker/container for them to take effect. Manual headless runs with "
+    "`python -m app --process` remain available."
 )
+
+# ============================================================================
+# Notification Configuration
+# ============================================================================
+st.divider()
+st.subheader("Notifications")
+
+notify_enabled = st.checkbox(
+    "Enable Pushover Notifications",
+    value=settings["notify_enabled"],
+    help="Send job status notifications through Pushover",
+)
+
+col1, col2 = st.columns(2)
+with col1:
+    pushover_token = st.text_input(
+        "Pushover Token",
+        value=settings["pushover_token"] or "",
+        type="password",
+        help="Pushover application token",
+    )
+with col2:
+    pushover_user = st.text_input(
+        "Pushover User",
+        value=settings["pushover_user"] or "",
+        type="password",
+        help="Pushover user key",
+    )
+
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    notify_on_start = st.checkbox("Start", value=settings["notify_on_start"])
+with col2:
+    notify_on_complete = st.checkbox("Complete", value=settings["notify_on_complete"])
+with col3:
+    notify_on_error = st.checkbox("Error", value=settings["notify_on_error"])
+with col4:
+    notify_on_review = st.checkbox("Review", value=settings["notify_on_review"])
 
 # ============================================================================
 # Save Button
@@ -235,6 +306,18 @@ if st.button("Save Settings", type="primary", use_container_width=True):
         manager.set("source_path", source_path)
         manager.set("output_path", output_path)
         manager.set("schedule_enabled", schedule_enabled)
+        manager.set("schedule_cron", schedule_cron)
+        manager.set("watch_enabled", watch_enabled)
+        manager.set("watch_stable_seconds", watch_stable_seconds)
+        manager.set("watch_poll_seconds", watch_poll_seconds)
+        manager.set("notify_enabled", notify_enabled)
+        manager.set("pushover_token", pushover_token)
+        manager.set("pushover_user", pushover_user)
+        manager.set("notify_on_start", notify_on_start)
+        manager.set("notify_on_complete", notify_on_complete)
+        manager.set("notify_on_error", notify_on_error)
+        manager.set("notify_on_review", notify_on_review)
+        manager.set("lock_stale_minutes", lock_stale_minutes)
 
         st.success("Settings saved successfully!")
         st.balloons()

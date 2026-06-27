@@ -1,8 +1,7 @@
 """Scan & Process page."""
 
 import streamlit as st
-import time
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 from pathlib import Path
 import sys
 import os
@@ -11,8 +10,8 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from app.services.scanner import scan_source_directory
-from app.services.processor import process_pending_notes
 from app.database import get_pending_notes, init_db, upsert_note, get_note_by_path, reset_note_for_reprocessing
+from app.ui_worker import DEFAULT_WORKER_URL, fetch_worker_status, format_worker_status, trigger_worker_process
 import app.styles as styles
 
 # Abort flag file (used to signal abort across Streamlit reruns)
@@ -47,6 +46,13 @@ styles.load_css()
 
 st.title("🔍 Scan & Process")
 st.markdown("Discover new notes and process them with AI vision.")
+
+worker_display = format_worker_status(fetch_worker_status())
+if worker_display["available"]:
+    st.success(f"{worker_display['label']}: {worker_display['summary']}")
+else:
+    st.error(f"{worker_display['label']}: {worker_display['summary']}")
+    st.caption(f"Worker URL: `{DEFAULT_WORKER_URL}`")
 
 # ============================================================================
 # Scan Configuration
@@ -211,8 +217,16 @@ if st.session_state.discovered_notes:
                 parts.append(f"{inserted} new")
             if requeued:
                 parts.append(f"{requeued} requeued")
-            st.success(f"Added {' + '.join(parts)} notes to queue. Processing will start below.")
-            st.rerun()
+            queue_summary = " + ".join(parts) if parts else "0"
+            worker_result = trigger_worker_process()
+            if worker_result.available and worker_result.status == "accepted":
+                st.success(f"Added {queue_summary} notes to queue. {worker_result.message}")
+            elif worker_result.available and worker_result.status == "already_running":
+                st.warning(f"Added {queue_summary} notes to queue. {worker_result.message}")
+            elif worker_result.available:
+                st.info(f"Added {queue_summary} notes to queue. {worker_result.message}")
+            else:
+                st.error(f"Added {queue_summary} notes to queue, but {worker_result.message}")
     else:
         st.warning("No notes selected. Use checkboxes above to select notes to process.")
 
@@ -263,82 +277,14 @@ else:
             st.rerun()
 
     if process_btn:
-        # Clear abort flag before starting
         clear_abort_flag()
-        st.session_state.processing_logs = []
-
-        # Progress container
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        detail_text = st.empty()
-        log_expander = st.expander("📋 Processing Logs (live)", expanded=True)
-        log_area = log_expander.empty()
-
-        def progress_callback(stage: str, current: int, total: int, note_name: str):
-            """Update UI progress."""
-            if stage == "processing":
-                percent = int((current / total) * 100)
-                progress_bar.progress(percent)
-                status_text.markdown(f"**Processing {current}/{total}:** `{note_name}`")
-            elif stage == "complete":
-                progress_bar.progress(100)
-                status_text.success("Processing complete!")
-                detail_text.empty()  # Clear detail message on completion
-            elif stage == "aborted":
-                progress_bar.progress(int((current / total) * 100) if total > 0 else 0)
-                status_text.warning(f"Processing aborted after {current}/{total} notes")
-                detail_text.empty()
-
-        def detail_callback(message: str):
-            """Update detailed status message."""
-            detail_text.markdown(f"↳ _{message}_")
-
-        def log_callback(message: str):
-            """Collect log messages."""
-            timestamp = datetime.now().strftime("%H:%M:%S")
-            st.session_state.processing_logs.append(f"[{timestamp}] {message}")
-            # Update log display (show last 100 lines)
-            log_area.code("\n".join(st.session_state.processing_logs[-100:]), language=None)
-
-        # Run processing
-        with st.status("Processing pipeline running...", expanded=True) as status:
-            result = process_pending_notes(
-                progress_callback=progress_callback,
-                detail_callback=detail_callback,
-                log_callback=log_callback,
-                abort_check=check_abort_flag,
-            )
-
-            # Clear abort flag after processing
-            clear_abort_flag()
-
-            status.write("---")
-            status.write(f"**Processed:** {result.processed}")
-            status.write(f"**Auto-approved:** {result.auto_approved}")
-            status.write(f"**Queued for Review:** {result.review_queued}")
-
-            if result.errors > 0:
-                status.error(f"**Errors:** {result.errors}")
-                for note_id, msg in result.error_details:
-                    status.write(f"- Note ID {note_id}: {msg}")
-            else:
-                status.write("**Errors:** 0")
-
-            if result.aborted:
-                status.update(label="Processing Aborted", state="error")
-                st.warning("Processing was aborted by user.")
-            else:
-                status.update(label="Processing Complete", state="complete")
-                st.success("Batch processing finished!")
-
-        if result.review_queued > 0:
-            st.info(f"👉 {result.review_queued} notes queued for review. Go to **Review** page.")
-
-        # Show final logs
-        if st.session_state.processing_logs:
-            with st.expander("📋 Full Processing Log", expanded=False):
-                st.code("\n".join(st.session_state.processing_logs), language=None)
-
-        # Rerun to update pending count
-        time.sleep(2)
-        st.rerun()
+        worker_result = trigger_worker_process()
+        if worker_result.available and worker_result.status == "accepted":
+            st.success(worker_result.message)
+            st.info("Refresh this page or the dashboard to see updated worker status.")
+        elif worker_result.available and worker_result.status == "already_running":
+            st.warning(worker_result.message)
+        elif worker_result.available and worker_result.status == "idle":
+            st.info(worker_result.message)
+        else:
+            st.error(worker_result.message)

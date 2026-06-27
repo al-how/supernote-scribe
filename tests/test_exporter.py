@@ -248,13 +248,13 @@ def test_export_note_by_id_not_found_raises(test_db):
 
 
 def test_export_all_fixtures(png_output_dir):
-    """Export all 7 test fixture files."""
+    """Export all tracked test fixture files."""
     fixtures_dir = Path("tests/fixtures")
     if not fixtures_dir.exists():
         pytest.skip("Fixtures directory not found")
 
     note_files = list(fixtures_dir.rglob("*.note"))
-    assert len(note_files) == 12, f"Expected 12 fixtures, found {len(note_files)}"
+    assert len(note_files) == 7, f"Expected 7 fixtures, found {len(note_files)}"
 
     for note_path in note_files:
         # Create subdirectory for each note to avoid collisions

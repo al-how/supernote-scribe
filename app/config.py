@@ -95,13 +95,66 @@ class Settings(BaseSettings):
     # Scheduling
     # NOTE: Cron expression validation deferred - invalid expressions will fail
     # at runtime when the scheduler parses them, not at config load time.
+    schedule_enabled: bool = Field(
+        default=False,
+        description="Enable/disable scheduled processing",
+    )
     schedule_cron: str = Field(
         default="0 3 * * *",
         description="Cron expression for scheduled processing (default: 3am daily)",
     )
-    schedule_enabled: bool = Field(
+
+    # Watcher
+    watch_enabled: bool = Field(
+        default=True,
+        description="Enable/disable automatic .note file watcher",
+    )
+    watch_stable_seconds: int = Field(
+        default=60,
+        ge=1,
+        description="Seconds a .note file must be unchanged before processing",
+    )
+    watch_poll_seconds: int = Field(
+        default=15,
+        ge=1,
+        description="File watcher polling interval in seconds",
+    )
+
+    # Notifications
+    notify_enabled: bool = Field(
         default=False,
-        description="Enable/disable scheduled processing",
+        description="Enable/disable Pushover notifications",
+    )
+    pushover_token: str = Field(
+        default="",
+        description="Pushover application token",
+    )
+    pushover_user: str = Field(
+        default="",
+        description="Pushover user key",
+    )
+    notify_on_start: bool = Field(
+        default=True,
+        description="Send notification when processing starts",
+    )
+    notify_on_complete: bool = Field(
+        default=True,
+        description="Send notification when processing completes",
+    )
+    notify_on_error: bool = Field(
+        default=True,
+        description="Send notification when processing errors",
+    )
+    notify_on_review: bool = Field(
+        default=True,
+        description="Send notification when notes need review",
+    )
+
+    # Processing lock
+    lock_stale_minutes: int = Field(
+        default=15,
+        ge=1,
+        description="Minutes before an abandoned processing lock is considered stale",
     )
 
 

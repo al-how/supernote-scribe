@@ -150,6 +150,61 @@ def scan_source_directory(
     return results
 
 
+def _scan_note_file(note_path: Path) -> dict:
+    """Build database metadata for one .note file."""
+    stat = note_path.stat()
+    file_modified_at = datetime.fromtimestamp(stat.st_mtime).isoformat()
+    normalized_path = note_path.as_posix()
+    source_folder = determine_source_folder(normalized_path)
+
+    return {
+        "file_path": normalized_path,
+        "file_name": note_path.name,
+        "file_modified_at": file_modified_at,
+        "source_folder": source_folder,
+        "output_folder": determine_output_folder(source_folder),
+        "file_hash": calculate_file_hash(note_path),
+        "file_size_bytes": stat.st_size,
+    }
+
+
+def scan_file_and_insert(file_path: Path) -> tuple[int, int, int]:
+    """
+    Insert or update one .note file without scanning the source tree.
+
+    Returns:
+        Tuple of (new_count, updated_count, skipped_count).
+    """
+    note_path = Path(file_path)
+    if not note_path.exists() or not note_path.is_file() or note_path.suffix != ".note":
+        return (0, 0, 0)
+
+    note_info = _scan_note_file(note_path)
+    existing = get_note_by_path(note_info["file_path"])
+
+    upsert_note(
+        file_path=note_info["file_path"],
+        file_name=note_info["file_name"],
+        file_modified_at=note_info["file_modified_at"],
+        source_folder=note_info["source_folder"],
+        output_folder=note_info["output_folder"],
+        file_hash=note_info["file_hash"],
+        file_size_bytes=note_info["file_size_bytes"],
+    )
+
+    if existing is None:
+        return (1, 0, 0)
+    if (
+        existing["file_modified_at"] != note_info["file_modified_at"]
+        or (
+            note_info["file_hash"]
+            and existing["file_hash"] != note_info["file_hash"]
+        )
+    ):
+        return (0, 1, 0)
+    return (0, 0, 1)
+
+
 def scan_and_insert(
     source_path: Path | None = None,
     cutoff_date: date | None = None,

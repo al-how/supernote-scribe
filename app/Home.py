@@ -9,6 +9,7 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.database import init_db, count_notes_by_status, get_recent_activity
+from app.ui_worker import DEFAULT_WORKER_URL, fetch_worker_status, format_worker_status
 import app.styles as styles
 from app import __version__
 
@@ -28,11 +29,21 @@ st.markdown("Convert handwritten Supernote files to searchable markdown using AI
 # Status Cards
 st.subheader("📊 Status Overview")
 
-# Fetch stats
-stats = count_notes_by_status()
-pending_count = stats.get("pending", 0)
-review_count = stats.get("review", 0)
-processed_count = stats.get("approved", 0) + stats.get("auto_approved", 0)
+worker_status = format_worker_status(fetch_worker_status())
+if worker_status["available"]:
+    st.success(f"{worker_status['label']}: {worker_status['summary']}")
+else:
+    st.error(f"{worker_status['label']}: {worker_status['summary']}")
+    st.caption(f"Worker URL: `{DEFAULT_WORKER_URL}`")
+
+fallback_stats = count_notes_by_status()
+pending_count = worker_status["pending_count"] if worker_status["available"] else fallback_stats.get("pending", 0)
+review_count = worker_status["review_count"] if worker_status["available"] else fallback_stats.get("review", 0)
+processed_count = (
+    worker_status["processed_count"]
+    if worker_status["available"]
+    else fallback_stats.get("approved", 0) + fallback_stats.get("auto_approved", 0)
+)
 
 col1, col2, col3 = st.columns(3)
 
@@ -44,6 +55,22 @@ with col2:
 
 with col3:
     st.metric(label="Processed", value=str(processed_count))
+
+st.caption("Queue counts come from the worker when reachable; local database counts are shown when it is down.")
+
+with st.expander("Worker Details", expanded=not worker_status["available"]):
+    if worker_status["available"]:
+        st.markdown(f"""
+        - Current Note: `{worker_status['current_note'] or 'None'}`
+        - Last Success: `{worker_status['last_success'] or 'None'}`
+        - Last Error: `{worker_status['last_error'] or 'None'}`
+        - Watcher Status: `{worker_status['watcher_status'] or 'None'}`
+        - Next Scheduled Run: `{worker_status['next_scheduled_run'] or 'None'}`
+        - OCR Provider: `{worker_status['ocr_provider'] or 'unknown'}`
+        - OCR Check: `{worker_status['ocr_message'] or 'None'}`
+        """)
+    else:
+        st.warning("The Streamlit UI is running, but the worker API is not reachable. Start the worker before processing notes.")
 
 # Quick Actions
 st.divider()

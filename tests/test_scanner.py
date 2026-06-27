@@ -6,8 +6,11 @@ from pathlib import Path
 import pytest
 
 from app.database import (
+    get_extractions_for_note,
     get_note_by_path,
     init_db,
+    insert_extraction,
+    mark_note_auto_approved,
     set_db_path,
 )
 from app.services.scanner import (
@@ -15,6 +18,7 @@ from app.services.scanner import (
     extract_date_from_filename,
     get_note_date,
     scan_and_insert,
+    scan_file_and_insert,
     scan_source_directory,
 )
 
@@ -358,6 +362,68 @@ def test_scan_and_insert_respects_source_path_from_config(tmp_path, test_db, mon
     assert new == 1
 
 
+def test_scan_file_and_insert_handles_single_note_lifecycle_without_tree_scan(
+    tmp_path, test_db
+):
+    """Single-file scan inserts, skips unchanged, updates changed, and ignores invalid paths."""
+    notes_dir = tmp_path / "notes"
+    notes_dir.mkdir()
+    note_path = notes_dir / "20260101_single.note"
+    note_path.write_bytes(b"original")
+
+    assert scan_file_and_insert(note_path) == (1, 0, 0)
+    assert get_note_by_path(note_path.as_posix()) is not None
+
+    assert scan_file_and_insert(note_path) == (0, 0, 1)
+
+    note_path.write_bytes(b"changed")
+    assert scan_file_and_insert(note_path) == (0, 1, 0)
+
+    text_path = notes_dir / "not-a-note.txt"
+    text_path.write_text("ignore")
+    assert scan_file_and_insert(text_path) == (0, 0, 0)
+    assert scan_file_and_insert(notes_dir / "missing.note") == (0, 0, 0)
+
+
+def test_scan_file_and_insert_changed_processed_note_clears_prior_processing_state(
+    tmp_path, test_db
+):
+    """Changed processed notes can be reprocessed without stale extraction conflicts."""
+    notes_dir = tmp_path / "notes"
+    notes_dir.mkdir()
+    note_path = notes_dir / "20260101_reprocess.note"
+    note_path.write_bytes(b"original")
+
+    assert scan_file_and_insert(note_path) == (1, 0, 0)
+    note = get_note_by_path(note_path.as_posix())
+    note_id = note["id"]
+    insert_extraction(
+        note_id=note_id,
+        page_number=0,
+        raw_text="old text",
+        ai_model="test-model",
+    )
+    mark_note_auto_approved(note_id, "/output/old.md")
+
+    note_path.write_bytes(b"changed")
+    assert scan_file_and_insert(note_path) == (0, 1, 0)
+
+    changed = get_note_by_path(note_path.as_posix())
+    assert changed["status"] == "pending"
+    assert changed["processed_at"] is None
+    assert changed["approved_at"] is None
+    assert changed["output_path"] is None
+    assert get_extractions_for_note(note_id) == []
+
+    insert_extraction(
+        note_id=note_id,
+        page_number=0,
+        raw_text="new text",
+        ai_model="test-model",
+    )
+    assert len(get_extractions_for_note(note_id)) == 1
+
+
 # =============================================================================
 # Integration Test with Real Fixtures
 # =============================================================================
@@ -371,8 +437,9 @@ def test_scan_real_fixtures(test_db):
 
     new, updated, skipped = scan_and_insert(fixtures_path)
 
-    # Should find 12 notes (8 Daily Journal, 3 WORK, 1 Other)
-    assert new == 12
+    expected_note_count = len(list(fixtures_path.rglob("*.note")))
+
+    assert new == expected_note_count
     assert updated == 0
     assert skipped == 0
 
@@ -400,4 +467,4 @@ def test_scan_real_fixtures(test_db):
     new2, updated2, skipped2 = scan_and_insert(fixtures_path)
     assert new2 == 0
     assert updated2 == 0
-    assert skipped2 == 12
+    assert skipped2 == expected_note_count

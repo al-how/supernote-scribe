@@ -30,9 +30,9 @@ RUN mkdir -p /app/data
 EXPOSE 8501
 EXPOSE 8000
 
-# Healthcheck to verify Streamlit is responsive
+# Healthcheck to verify Streamlit and the worker are responsive
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+    CMD curl --fail http://localhost:8501/_stcore/health && curl --fail http://localhost:8000/health || exit 1
 
 # Run as root (Unraid compatibility - avoids UID/GID permission issues)
 CMD ["./start.sh"]

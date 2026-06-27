@@ -16,7 +16,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from app.services.processor import run_batch_process, process_pending_notes
+from app.services.processor import process_pending_notes
 from app.services.scanner import scan_and_insert, get_note_date
 from app.database import init_db, get_all_notes, reset_note_for_reprocessing
 from app.config import init_app
@@ -191,10 +191,35 @@ def main() -> int:
 
         # Default: full process mode (scan + process)
         logger.info("Running full process mode (scan + process)")
-        result = run_batch_process(
+        from app.worker import run_cli_process
+
+        worker_result = run_cli_process(
             cutoff_date=cutoff_date,
             prefer_openai=args.prefer_openai,
         )
+
+        if worker_result.status == "already_running":
+            print("\nProcessing is already running. Nothing started.\n")
+            return 0
+
+        if worker_result.status == "idle":
+            print("\n=== Scan Results ===")
+            print(f"New: {worker_result.scanned[0]}")
+            print(f"Updated: {worker_result.scanned[1]}")
+            print(f"Skipped: {worker_result.scanned[2]}")
+            print()
+            print("No pending notes to process.")
+            print()
+            return 0
+
+        if worker_result.status == "error":
+            print(f"\nProcessing failed: {worker_result.error or worker_result.message}\n")
+            return 1
+
+        result = worker_result.result
+        if result is None:
+            print(f"\nUnexpected worker result: {worker_result.status}\n")
+            return 1
 
         # Print results
         print("\n=== Scan Results ===")

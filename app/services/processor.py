@@ -91,6 +91,12 @@ AbortCheckCallback = Callable[[], bool]
 # (message) for log messages like errors, warnings, GPU info
 LogCallback = Callable[[str], None]
 
+# () -> None: called by a supervising worker to refresh its processing lock
+HeartbeatCallback = Callable[[], None]
+
+# (note | None) -> None: current note while processing, None when batch ends
+CurrentNoteCallback = Callable[[dict | None], None]
+
 
 # =============================================================================
 # Helper Functions
@@ -353,6 +359,8 @@ def process_pending_notes(
     detail_callback: DetailCallback | None = None,
     log_callback: LogCallback | None = None,
     abort_check: AbortCheckCallback | None = None,
+    heartbeat_callback: HeartbeatCallback | None = None,
+    current_note_callback: CurrentNoteCallback | None = None,
     prefer_openai: bool = False,
 ) -> BatchProcessResult:
     """
@@ -390,85 +398,95 @@ def process_pending_notes(
     error_details: list[tuple[int, str]] = []
     aborted = False
 
-    # Process each note
-    for idx, note in enumerate(pending_notes):
-        # Check if abort was requested
-        if abort_check and abort_check():
-            logger.info("Processing aborted by user")
-            if log_callback:
-                log_callback("Processing aborted by user")
-            aborted = True
-            break
+    try:
+        # Process each note
+        for idx, note in enumerate(pending_notes):
+            # Check if abort was requested
+            if abort_check and abort_check():
+                logger.info("Processing aborted by user")
+                if log_callback:
+                    log_callback("Processing aborted by user")
+                aborted = True
+                break
 
-        note_id = note["id"]
-        note_name = note["file_name"]
+            note_id = note["id"]
+            note_name = note["file_name"]
+
+            if current_note_callback:
+                current_note_callback(note)
+
+            if heartbeat_callback:
+                heartbeat_callback()
+
+            if progress_callback:
+                progress_callback("processing", idx + 1, total_notes, note_name)
+
+            logger.info(f"Processing note {idx + 1}/{total_notes}: {note_name}")
+            if log_callback:
+                log_callback(f"Processing: {note_name}")
+
+            # Process the note
+            result = process_single_note(
+                note_id=note_id,
+                settings=settings,
+                detail_callback=detail_callback,
+                log_callback=log_callback,
+                abort_check=abort_check,
+                prefer_openai=prefer_openai,
+            )
+
+            # If processing was aborted mid-note, stop the batch
+            if result.status == "aborted":
+                logger.info("Note processing was aborted, stopping batch")
+                aborted = True
+                break
+
+            # Update counters
+            processed += 1
+
+            if result.status == "auto_approved":
+                auto_approved += 1
+            elif result.status == "review":
+                review_queued += 1
+            elif result.status == "error":
+                errors += 1
+                error_details.append((note_id, result.error_message or "Unknown error"))
 
         if progress_callback:
-            progress_callback("processing", idx + 1, total_notes, note_name)
+            if aborted:
+                progress_callback("aborted", processed, total_notes, "")
+            else:
+                progress_callback("complete", total_notes, total_notes, "")
 
-        logger.info(f"Processing note {idx + 1}/{total_notes}: {note_name}")
-        if log_callback:
-            log_callback(f"Processing: {note_name}")
-
-        # Process the note
-        result = process_single_note(
-            note_id=note_id,
-            settings=settings,
-            detail_callback=detail_callback,
-            log_callback=log_callback,
-            abort_check=abort_check,
-            prefer_openai=prefer_openai,
+        logger.info(
+            f"Batch processing complete: {processed} processed, "
+            f"{auto_approved} auto-approved, {review_queued} queued, {errors} errors"
         )
 
-        # If processing was aborted mid-note, stop the batch
-        if result.status == "aborted":
-            logger.info("Note processing was aborted, stopping batch")
-            aborted = True
-            break
+        # Log batch activity
+        log_activity(
+            event_type="batch_process",
+            message=f"Batch processed {processed} notes",
+            details={
+                "processed": processed,
+                "auto_approved": auto_approved,
+                "review_queued": review_queued,
+                "errors": errors,
+            },
+        )
 
-        # Update counters
-        processed += 1
-
-        if result.status == "auto_approved":
-            auto_approved += 1
-        elif result.status == "review":
-            review_queued += 1
-        elif result.status == "error":
-            errors += 1
-            error_details.append((note_id, result.error_message or "Unknown error"))
-
-    if progress_callback:
-        if aborted:
-            progress_callback("aborted", processed, total_notes, "")
-        else:
-            progress_callback("complete", total_notes, total_notes, "")
-
-    logger.info(
-        f"Batch processing complete: {processed} processed, "
-        f"{auto_approved} auto-approved, {review_queued} queued, {errors} errors"
-    )
-
-    # Log batch activity
-    log_activity(
-        event_type="batch_process",
-        message=f"Batch processed {processed} notes",
-        details={
-            "processed": processed,
-            "auto_approved": auto_approved,
-            "review_queued": review_queued,
-            "errors": errors,
-        },
-    )
-
-    return BatchProcessResult(
-        scanned=(0, 0, 0),  # No scan data in this function
-        processed=processed,
-        auto_approved=auto_approved,
-        review_queued=review_queued,
-        errors=errors,
-        error_details=error_details,
-        aborted=aborted,
-    )
+        return BatchProcessResult(
+            scanned=(0, 0, 0),  # No scan data in this function
+            processed=processed,
+            auto_approved=auto_approved,
+            review_queued=review_queued,
+            errors=errors,
+            error_details=error_details,
+            aborted=aborted,
+        )
+    finally:
+        if current_note_callback:
+            current_note_callback(None)
 
 
 def run_batch_process(

@@ -1,46 +1,37 @@
 # Supernote Converter
 
-A Python Streamlit application designed to automate the conversion of handwritten Supernote `.note` files to digital text using local vision AI and export them to an Obsidian vault.
-
-Test Push
+A Python Streamlit application that converts handwritten Supernote `.note` files into searchable Markdown for Obsidian. It uses local llama-server vision OCR by default, keeps Ollama available as an optional local provider, and can fall back to OpenAI.
 
 ## Features
 
-*   **Scanning:** Automatically detects `.note` files in a synchronized directory.
-*   **Conversion:** Converts Supernote proprietary format to PNG images.
-*   **OCR:** Extracts text from images using llama-server by default, with Ollama as an optional local provider and OpenAI fallback options.
-*   **Review UI:** A Streamlit dashboard to review, edit, and approve extracted text alongside the original image.
-*   **Export:** Generates Markdown files with frontmatter suitable for Obsidian.
-*   **Automation:** Supports headless CLI execution for background tasks or cron jobs.
+* **Scanning:** Detects `.note` files in a synchronized Supernote directory.
+* **Conversion:** Converts Supernote pages to PNG images.
+* **OCR:** Extracts text from images using llama-server by default, Ollama optionally, and OpenAI as fallback.
+* **Review UI:** Streamlit review queue for checking, editing, and approving extracted text alongside the original image.
+* **Export:** Writes Markdown files with Obsidian-friendly frontmatter.
+* **Worker:** FastAPI worker owns background processing, locking, watcher, scheduler, health, and status endpoints.
+* **Automation:** File watcher and scheduler can replace n8n after deployed verification confirms the new watcher/scheduler behavior in production.
+* **Notifications:** Optional non-blocking Pushover notifications for start, completion, errors, and review-needed runs.
 
 ## Prerequisites
 
-*   **Python 3.10+** installed on your system.
-*   **llama-server** running locally or accessible via network with a multimodal vision model.
-*   Optional: **Ollama** running locally or accessible via network with a vision model pulled (e.g., `qwen3-vl:8b`) if you want to use Ollama instead.
+* Python 3.11.
+* llama-server reachable with a multimodal vision model.
+* Optional: Ollama reachable with a vision model such as `qwen3-vl:8b`.
+* Optional: OpenAI API key for fallback OCR.
 
 ## Windows Development Setup
 
-Follow these steps to get the Streamlit server running on Windows.
+Open PowerShell in the project root.
 
-### 1. Set up a Virtual Environment
-
-Open your terminal (Command Prompt or PowerShell) in the project root directory and run:
+### 1. Set Up A Virtual Environment
 
 ```powershell
-# Create the virtual environment
 python -m venv .venv
-
-# Activate the virtual environment
-# For PowerShell:
 .\.venv\Scripts\Activate.ps1
-# For Command Prompt (cmd.exe):
-.\.venv\Scripts\activate.bat
 ```
 
 ### 2. Install Dependencies
-
-With the virtual environment activated, install the required packages:
 
 ```powershell
 pip install -r requirements.txt
@@ -48,78 +39,153 @@ pip install -r requirements.txt
 
 ### 3. Configure Environment Variables
 
-1.  Copy the example environment file:
-    ```powershell
-    copy .env.example .env
-    ```
-2.  Open `.env` in a text editor and configure your paths:
-    *   `SUPERNOTE_PATH`: Path to your synced Supernote files.
-    *   `OBSIDIAN_VAULT_PATH`: Path where you want the markdown files exported.
-    *   Configure OCR settings (`OCR_PROVIDER`, llama-server URL/model, optional Ollama URL/model).
+Copy the example file, then edit `.env` for your local paths and OCR services:
 
-### 4. Run the Streamlit Application
+```powershell
+copy .env.example .env
+```
 
-To start the web interface:
+Important path settings:
+
+* `SOURCE_PATH`: directory containing synced Supernote `.note` files.
+* `OUTPUT_PATH`: Obsidian Journals output directory.
+* `DATABASE_PATH`: SQLite database path, usually `data/supernote.db`.
+* `PNG_CACHE_PATH`: PNG export cache path, usually `data/png_cache`.
+
+OCR settings:
+
+* `OCR_PROVIDER=llama_server` for the default local provider.
+* `LLAMA_SERVER_URL` and `LLAMA_SERVER_MODEL` for llama-server.
+* `OLLAMA_URL` and `OLLAMA_MODEL` if using Ollama instead.
+* `OPENAI_API_KEY` for fallback OCR.
+
+### 4. Run Locally
+
+Run the worker and Streamlit in separate PowerShell terminals:
+
+```powershell
+uvicorn app.worker:app --host 127.0.0.1 --port 8000
+```
 
 ```powershell
 streamlit run app/Home.py
 ```
 
-The application should automatically open in your default web browser at `http://localhost:8501`.
+Open `http://localhost:8501`. The UI delegates processing to the worker at `http://127.0.0.1:8000`; if the worker is not running, the UI shows a worker-unavailable state instead of processing in the Streamlit session.
 
 ## CLI / Headless Mode
 
-For background processing (e.g., scheduled tasks) without the UI:
+The CLI uses the same lock-aware processing path as the worker.
 
 ```powershell
-# Process new files
 python -m app --process
-
-# Process files with a specific cutoff date
 python -m app --process --cutoff 2026-01-01
+python -m app --version
 ```
+
+## Worker Endpoints
+
+The worker listens on port `8000` inside the container. On the current Unraid deployment this is expected to be mapped as `8002 -> 8000` once the Unraid compose file is updated.
+
+| Method | Local URL | Purpose |
+| --- | --- | --- |
+| `POST` | `http://127.0.0.1:8000/process` | Scan recent notes, wake the worker, and return `accepted`, `idle`, or `already_running`. |
+| `GET` | `http://127.0.0.1:8000/status` | Return queue counts, worker state, current note, lock state, watcher status, next scheduled run, and OCR provider. |
+| `GET` | `http://127.0.0.1:8000/health` | Return process/database health; unhealthy runtime state returns HTTP 503. |
+
+`POST /process` returns immediately while processing continues in the background. Repeated wake-ups are coalesced and protected by the SQLite processing lock.
+
+## Watcher, Scheduler, And Notifications
+
+Watcher settings:
+
+* `WATCH_ENABLED=true` enables recursive polling for `*.note` files.
+* `WATCH_STABLE_SECONDS=60` requires a note file to stop changing before it is queued.
+* `WATCH_POLL_SECONDS=15` controls the polling interval.
+
+Scheduler settings:
+
+* `SCHEDULE_ENABLED=false` disables the safety-net scheduler by default.
+* `SCHEDULE_CRON=0 3 * * *` schedules a daily 3am scan and worker wake-up when enabled.
+
+Watcher and scheduler settings are loaded when the worker starts. Restart the
+worker/container after changing `WATCH_*` or `SCHEDULE_*` values in the Settings
+page or environment.
+
+Lock recovery:
+
+* `LOCK_STALE_MINUTES=15` controls when an abandoned processing lock can be stolen and stale `processing` notes can be reset.
+
+Pushover notification settings:
+
+* `NOTIFY_ENABLED=false`
+* `PUSHOVER_TOKEN=`
+* `PUSHOVER_USER=`
+* `NOTIFY_ON_START=true`
+* `NOTIFY_ON_COMPLETE=true`
+* `NOTIFY_ON_ERROR=true`
+* `NOTIFY_ON_REVIEW=true`
+
+Notification sends are non-blocking and non-fatal; a Pushover outage should not fail note processing.
 
 ## Docker
 
-You can also run the application using Docker Compose:
+The container starts both processes through `start.sh`:
 
-1.  Update `docker-compose.yml` with your local paths.
-2.  Run:
-    ```bash
-    docker-compose up --build -d
-    ```
+* `uvicorn app.worker:app --host 0.0.0.0 --port 8000`
+* `streamlit run app/Home.py --server.address 0.0.0.0`
+
+If either process exits, `start.sh` exits so Docker can restart the container. The Docker healthcheck checks both Streamlit (`8501/_stcore/health`) and the worker (`8000/health`).
+
+For local Docker testing:
+
+```powershell
+docker-compose build
+docker-compose up -d
+```
+
+## Unraid Deployment Caveat
+
+The repo `docker-compose.yml` is not the compose file used by Unraid. Unraid uses:
+
+```text
+/boot/config/plugins/compose.manager/projects/supernote-converter/docker-compose.yml
+```
+
+After this image is published, update that Unraid compose file with the worker port, watcher/scheduler settings, and optional Pushover variables before treating the watcher/scheduler as a production replacement for n8n.
+
+Current expected published image:
+
+```text
+ghcr.io/al-how/supernote-scribe:latest
+```
+
+Current expected Unraid port mapping:
+
+```text
+8086 -> 8501  Streamlit
+8002 -> 8000  Worker
+```
+
+## Tests
+
+`pytest.ini` supplies the standard options, including `--basetemp=pytest-temp`, so the normal command is:
+
+```powershell
+pytest
+```
+
+Equivalent explicit command:
+
+```powershell
+pytest --tb=short -q --basetemp=pytest-temp
+```
 
 ## Project Structure
 
-*   `app/`: Main source code.
-    *   `Home.py`: Streamlit dashboard entry point.
-    *   `pages/`: UI pages (Scan, Review, History, Settings).
-    *   `services/`: Business logic (Scanner, OCR, Exporter).
-*   `data/`: Local storage (SQLite DB, image cache).
-
-## Webhook Endpoints
-The webhook server is already running on your Unraid box at port 8002:
-
-Method	URL	Purpose
-POST	http://server-ip:8002/process	Trigger a conversion run
-GET	http://server-ip:8002/status	Check pending queue
-GET	http://server-ip:8002/health	Health check
-
-## n8n Workflow Setup
-The simplest flow is a single HTTP Request node:
-
-- Add a trigger — whatever you want to kick it off (Schedule, webhook from another service, manual, etc.)
-- Add an HTTP Request node:
-- Method: POST
-- URL: http://server-ip:8002/process
-- No body needed
-- The endpoint returns immediately with {"status": "accepted", "message": "Processing N note(s) in background"} — processing continues in the background on Unraid.
-
-Optional: Check Results
-- If you want to verify results after a delay, add a Wait node (e.g. 2 minutes) followed by another HTTP Request node:
-
-Method: GET
-- URL: http://server-ip:8002/status
-- This returns {"pending_count": 0, "recent_activity": [...]} which you can use to send a notification.
-
-The /process endpoint automatically looks back 7 days for notes, so no parameters needed.
+* `app/Home.py`: Streamlit dashboard entry point.
+* `app/pages/`: Scan, Review, History, and Settings pages.
+* `app/worker.py`: FastAPI worker for processing, status, health, watcher, scheduler, and lock-aware CLI path.
+* `app/services/`: Scanner, exporter, OCR, processor, Markdown, watcher, notifications, and connectivity helpers.
+* `app/database.py`: SQLite schema, settings, notes, activity log, and processing lock helpers.
+* `data/`: Local database and PNG cache runtime storage.

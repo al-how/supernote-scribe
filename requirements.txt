@@ -10,3 +10,5 @@ pytest-mock>=3.12.0
 respx>=0.20.0
 fastapi>=0.110.0
 uvicorn>=0.29.0
+watchdog>=4.0.0
+apscheduler>=3.10.0

@@ -48,21 +48,10 @@ class SettingsManager:
         config = get_settings()
         db_settings = get_all_settings()
 
-        # Start with config defaults
+        # Start with every Pydantic config field so new settings stay in sync.
         result = {
-            'ocr_provider': config.ocr_provider,
-            'llama_server_url': config.llama_server_url,
-            'llama_server_model': config.llama_server_model,
-            'ollama_url': config.ollama_url,
-            'ollama_model': config.ollama_model,
-            'openai_api_key': config.openai_api_key or '',
-            'openai_model': config.openai_model,
-            'source_path': str(config.source_path),
-            'output_path': str(config.output_path),
-            'quality_threshold': config.quality_threshold,
-            'auto_approve_threshold': config.auto_approve_threshold,
-            'ocr_timeout': config.ocr_timeout,
-            'schedule_enabled': config.schedule_enabled,
+            key: getattr(config, key)
+            for key in Settings.model_fields
         }
 
         # Override with DB values (only if not None/empty)
