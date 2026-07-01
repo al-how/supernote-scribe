@@ -1,4 +1,5 @@
 import asyncio
+from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -68,15 +69,20 @@ def test_process_recovers_stale_processing_note_without_pending_notes(test_db, m
         source_folder="Other",
         output_folder="Journals/Other/",
     )
+    # Seed the stale timestamp using the app's local-time clock (_now uses
+    # datetime.now()), so the comparison against the reset cutoff is timezone
+    # consistent. SQLite's datetime('now') is UTC and would break this test in
+    # any timezone west of UTC.
+    stale_updated_at = (datetime.now() - timedelta(minutes=30)).isoformat()
     with get_connection() as conn:
         conn.execute(
             """
             UPDATE notes
             SET status = 'processing',
-                updated_at = datetime('now', '-30 minutes')
+                updated_at = ?
             WHERE id = ?
             """,
-            (stale_id,),
+            (stale_updated_at, stale_id),
         )
 
     monkeypatch.setattr("app.worker.scan_and_insert", lambda cutoff_date=None: (0, 0, 0))

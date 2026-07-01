@@ -92,6 +92,12 @@ The worker listens on port `8000` inside the container. On the current Unraid de
 | `POST` | `http://127.0.0.1:8000/process` | Scan recent notes, wake the worker, and return `accepted`, `idle`, or `already_running`. |
 | `GET` | `http://127.0.0.1:8000/status` | Return queue counts, worker state, current note, lock state, watcher status, next scheduled run, and OCR provider. |
 | `GET` | `http://127.0.0.1:8000/health` | Return process/database health; unhealthy runtime state returns HTTP 503. |
+| `GET` | `http://127.0.0.1:8000/activity?limit=20` | Return recent activity log entries (`limit` 1-500). |
+| `GET` | `http://127.0.0.1:8000/queue/review` | Return notes awaiting review plus status counts. |
+| `GET` | `http://127.0.0.1:8000/notes` | Return filtered, paginated note history (`status`, `search`, `limit`, `offset`). |
+| `GET` | `http://127.0.0.1:8000/notes/{note_id}` | Return a note with its extractions; HTTP 404 if unknown. |
+
+The read endpoints are unauthenticated. Keep the worker port on a trusted LAN/VPN only until auth is added.
 
 `POST /process` returns immediately while processing continues in the background. Repeated wake-ups are coalesced and protected by the SQLite processing lock.
 

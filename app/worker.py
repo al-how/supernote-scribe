@@ -11,7 +11,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable, Literal
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from app.config import Settings, init_app
@@ -19,9 +19,14 @@ from app.database import (
     DEFAULT_DB_PATH,
     acquire_processing_lock,
     count_notes_by_status,
+    get_extractions_for_note,
+    get_note_by_id,
+    get_notes_history,
     get_pending_notes,
     get_processing_lock,
     get_db_path,
+    get_recent_activity,
+    get_review_queue,
     heartbeat_processing_lock,
     init_db,
     release_processing_lock,
@@ -448,4 +453,52 @@ def health() -> Any:
         "status": "ok",
         "database": "ok",
         "worker_state": worker_state.state,
+    }
+
+
+@app.get("/activity")
+def get_activity(limit: int = Query(20, ge=1, le=500)) -> dict[str, Any]:
+    """Return recent worker activity log entries (details JSON already parsed)."""
+    _init_runtime()
+    return {"activity": get_recent_activity(limit=limit)}
+
+
+@app.get("/queue/review")
+def get_review_queue_endpoint() -> dict[str, Any]:
+    """Return notes awaiting review plus overall status counts."""
+    _init_runtime()
+    return {
+        "counts": count_notes_by_status(),
+        "notes": get_review_queue(),
+    }
+
+
+@app.get("/notes")
+def get_notes(
+    status: list[str] | None = Query(None),
+    search: str | None = Query(None),
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> dict[str, Any]:
+    """Return filtered, paginated note history."""
+    _init_runtime()
+    notes = get_notes_history(
+        status_filter=status,
+        search_term=search,
+        limit=limit,
+        offset=offset,
+    )
+    return {"notes": notes}
+
+
+@app.get("/notes/{note_id}")
+def get_note(note_id: int) -> dict[str, Any]:
+    """Return a single note with its extractions; 404 if the note is unknown."""
+    _init_runtime()
+    note = get_note_by_id(note_id)
+    if note is None:
+        raise HTTPException(status_code=404, detail=f"Note {note_id} not found")
+    return {
+        "note": note,
+        "extractions": get_extractions_for_note(note_id),
     }

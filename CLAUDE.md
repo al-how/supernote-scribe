@@ -97,6 +97,13 @@ The FastAPI worker owns background processing, locking, watcher, scheduler, and 
 * `GET /status` returns queue counts, worker state, current note, lock state, watcher status, next scheduled run, and OCR provider.
 * `GET /health` checks process/database health and returns HTTP 503 for unhealthy runtime state.
 
+Read endpoints (unauthenticated; keep the worker port on a trusted LAN/VPN only):
+
+* `GET /activity?limit=20` returns recent activity log entries (limit 1-500).
+* `GET /queue/review` returns notes awaiting review plus status counts.
+* `GET /notes` returns filtered, paginated note history (`status`, `search`, `limit`, `offset`).
+* `GET /notes/{note_id}` returns a note with its extractions; HTTP 404 if unknown.
+
 ## Database API (`app/database.py`)
 
 Fully implemented SQLite layer with thread-safe connections for Streamlit and worker use.
